@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
+import { normalizeIngredient } from "@/lib/translate";
+import { productImageUrl } from "@/lib/picnic";
+import IngredientList, { type IngredientItem } from "@/components/IngredientList";
 
 export default async function RecipeDetailPage({
   params,
@@ -15,6 +18,31 @@ export default async function RecipeDetailPage({
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({ where: { id } });
   if (!recipe || recipe.userId !== session.user.id) notFound();
+
+  // Build the per-ingredient view: pair each line with its saved product mapping.
+  const [user, mappings] = await Promise.all([
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
+    prisma.productMapping.findMany({ where: { userId: session.user.id } }),
+  ]);
+  const picnicLinked = Boolean(user?.picnicAuthKey);
+  const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
+
+  const ingredientItems: IngredientItem[] = recipe.ingredients.map((raw) => {
+    const m = byKey.get(normalizeIngredient(raw));
+    return {
+      raw,
+      product: m
+        ? {
+            mappingId: m.id,
+            picnicId: m.picnicId,
+            name: m.productName,
+            imageUrl: productImageUrl(m.imageId),
+            priceCents: m.priceCents,
+            unitQuantity: m.unitQuantity,
+          }
+        : null,
+    };
+  });
 
   const deleteAction = deleteRecipe.bind(null, recipe.id);
 
@@ -81,21 +109,17 @@ export default async function RecipeDetailPage({
         </div>
       ) : null}
 
-      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr]">
+      <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Ingredients</h2>
-          {recipe.ingredients.length ? (
-            <ul className="space-y-2 text-sm">
-              {recipe.ingredients.map((ing, i) => (
-                <li key={i} className="flex gap-2">
-                  <span className="text-brand-500">•</span>
-                  <span>{ing}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-stone-400">No ingredients listed.</p>
-          )}
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Ingredients</h2>
+            {picnicLinked ? null : (
+              <Link href="/settings" className="text-xs text-brand-600 hover:underline">
+                Connect Picnic
+              </Link>
+            )}
+          </div>
+          <IngredientList items={ingredientItems} picnicLinked={picnicLinked} />
         </section>
 
         <section>

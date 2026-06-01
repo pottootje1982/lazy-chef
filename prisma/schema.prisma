@@ -16,9 +16,11 @@ model User {
   emailVerified DateTime?
   image         String?
   passwordHash  String? // null for OAuth-only users
+  picnicAuthKey String? // AES-GCM encrypted Picnic auth key; null if not linked
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]
+  mappings      ProductMapping[]
   createdAt     DateTime  @default(now())
 }
 
@@ -77,4 +79,32 @@ model Recipe {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// Maps a (normalized) ingredient to a chosen Picnic product, per user.
+// Reusable: keyed by ingredientKey so the link applies across all recipes.
+model ProductMapping {
+  id            String   @id @default(cuid())
+  userId        String
+  ingredientKey String // normalized english ingredient, e.g. "cherry tomatoes"
+  rawIngredient String // original ingredient line, for reference
+  translated    String // dutch search term used
+  picnicId      String // Picnic selling unit id, e.g. "s1001524"
+  productName   String
+  imageId       String?
+  priceCents    Int?
+  unitQuantity  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ingredientKey])
+  @@index([userId])
+}
+
+// Shared translation cache (not user-specific) to avoid repeat API calls.
+model Translation {
+  source String @id // normalized english
+  target String // dutch
 }

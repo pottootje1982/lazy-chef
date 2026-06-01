@@ -34,6 +34,9 @@ export default async function RootLayout({
                 <Link href="/recipes/new" className="btn-primary !py-1.5">
                   + New
                 </Link>
+                <Link href="/settings" className="text-sm text-stone-600 hover:text-stone-900">
+                  Settings
+                </Link>
                 <div className="flex items-center gap-2 border-l border-stone-200 pl-3">
                   <span className="hidden text-sm text-stone-500 sm:inline">
                     {session.user.name ?? session.user.email}
