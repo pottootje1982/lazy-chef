@@ -1,0 +1,31 @@
+import { z } from "zod";
+
+export const recipeSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(300),
+  description: z.string().trim().max(5000).optional().or(z.literal("")),
+  imageUrl: z.string().trim().url().optional().or(z.literal("")),
+  sourceUrl: z.string().trim().url().optional().or(z.literal("")),
+  servings: z.string().trim().max(100).optional().or(z.literal("")),
+  prepTime: z.string().trim().max(100).optional().or(z.literal("")),
+  cookTime: z.string().trim().max(100).optional().or(z.literal("")),
+  ingredients: z.array(z.string().trim().min(1)).default([]),
+  instructions: z.array(z.string().trim().min(1)).default([]),
+  tags: z.array(z.string().trim().min(1)).default([]),
+});
+
+export type RecipeInput = z.infer<typeof recipeSchema>;
+
+export const importSchema = z.object({
+  url: z.string().trim().url("Enter a valid URL"),
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+export const registerSchema = z.object({
+  name: z.string().trim().min(1, "Name is required").max(100),
+  email: z.string().trim().email("Enter a valid email"),
+  password: z.string().min(8, "Password must be at least 8 characters").max(200),
+});
