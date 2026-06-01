@@ -17,6 +17,7 @@ model User {
   image         String?
   passwordHash  String? // null for OAuth-only users
   picnicAuthKey String? // AES-GCM encrypted Picnic auth key; null if not linked
+  picnicPendingKey String? // AES-GCM encrypted interim auth key during 2FA login; null otherwise
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]

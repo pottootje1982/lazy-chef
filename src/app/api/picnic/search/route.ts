@@ -5,6 +5,9 @@ import { decrypt } from "@/lib/crypto";
 import { searchProducts } from "@/lib/picnic";
 import { normalizeIngredient, translateToDutch } from "@/lib/translate";
 
+// Translate + Picnic search can take a few seconds; allow headroom where possible.
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {

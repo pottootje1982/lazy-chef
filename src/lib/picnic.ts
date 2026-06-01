@@ -25,39 +25,28 @@ export function createClient(authKey?: string) {
   return new PicnicClient({ countryCode: "NL", ...(authKey ? { authKey } : {}) });
 }
 
-// ---- Login + 2FA state ----
-// The 2FA flow spans two requests (login -> verify) and must reuse the same
-// authenticated client. Keep pending clients in memory (single-instance app),
-// surviving dev hot-reloads via globalThis.
-type Pending = { client: ReturnType<typeof createClient>; expires: number };
-const g = globalThis as unknown as { __picnicPending?: Map<string, Pending> };
-const pending: Map<string, Pending> = (g.__picnicPending ??= new Map());
-const TTL_MS = 10 * 60 * 1000;
-
-function reap() {
-  const now = Date.now();
-  for (const [k, v] of pending) if (v.expires < now) pending.delete(k);
-}
-
+// ---- Login + 2FA (stateless / serverless-safe) ----
+// The 2FA flow spans two requests (login -> verify). Rather than holding the
+// client in memory, we surface the interim auth key from the login step; the
+// caller persists it (encrypted) and passes it back to verify2FA, which
+// reconstructs the client. Picnic authenticates every call via the authKey
+// header and deviceId/agent are fixed defaults, so reconstruction is sufficient.
 export type LoginOutcome =
   | { status: "linked"; authKey: string }
-  | { status: "2fa_required" }
+  | { status: "2fa_required"; pendingKey: string }
   | { status: "error"; message: string };
 
-export async function startLogin(
-  userId: string,
-  email: string,
-  password: string,
-): Promise<LoginOutcome> {
-  reap();
+export async function startLogin(email: string, password: string): Promise<LoginOutcome> {
   const client = createClient();
   try {
     const result = await client.auth.login(email, password);
     if (result?.second_factor_authentication_required) {
-      // Trigger an SMS code and stash the client for the verify step.
+      if (!client.authKey) {
+        return { status: "error", message: "Login did not return a session key." };
+      }
+      // Send the SMS code; the interim key identifies this login session.
       await client.auth.generate2FACode("SMS");
-      pending.set(userId, { client, expires: Date.now() + TTL_MS });
-      return { status: "2fa_required" };
+      return { status: "2fa_required", pendingKey: client.authKey };
     }
     if (client.authKey) return { status: "linked", authKey: client.authKey };
     return { status: "error", message: "Login did not return an auth key." };
@@ -66,17 +55,11 @@ export async function startLogin(
   }
 }
 
-export async function verify2FA(userId: string, code: string): Promise<LoginOutcome> {
-  reap();
-  const entry = pending.get(userId);
-  if (!entry) {
-    return { status: "error", message: "Your verification session expired. Start again." };
-  }
+export async function verify2FA(pendingKey: string, code: string): Promise<LoginOutcome> {
+  const client = createClient(pendingKey);
   try {
-    await entry.client.auth.verify2FACode(code);
-    const authKey = entry.client.authKey;
-    pending.delete(userId);
-    if (authKey) return { status: "linked", authKey };
+    await client.auth.verify2FACode(code);
+    if (client.authKey) return { status: "linked", authKey: client.authKey };
     return { status: "error", message: "Verification did not return an auth key." };
   } catch {
     return { status: "error", message: "Invalid or expired verification code." };

@@ -8,6 +8,8 @@ import { loginSchema } from "@/lib/validation";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  // Trust the deployment host so callback URLs resolve behind Vercel's proxy.
+  trustHost: true,
   providers: [
     Google,
     Credentials({

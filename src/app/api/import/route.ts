@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { importSchema } from "@/lib/validation";
 import { scrapeRecipe } from "@/lib/scrape";
 
+// Allow more time for slow recipe sites where the platform permits it.
+export const maxDuration = 60;
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {

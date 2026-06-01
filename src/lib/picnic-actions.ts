@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, decrypt } from "@/lib/crypto";
 import { startLogin, verify2FA } from "@/lib/picnic";
 
 export type PicnicConnectState = {
@@ -27,26 +27,40 @@ export async function picnicConnect(
 
   let outcome;
   if (code) {
-    outcome = await verify2FA(userId, code);
+    // Verify step: reconstruct the login session from the stored interim key.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { picnicPendingKey: true },
+    });
+    if (!user?.picnicPendingKey) {
+      return { step: "credentials", error: "Your verification session expired. Start again." };
+    }
+    outcome = await verify2FA(decrypt(user.picnicPendingKey), code);
   } else {
     const email = (formData.get("email") as string | null)?.trim() ?? "";
     const password = (formData.get("password") as string | null) ?? "";
     if (!email || !password) {
       return { step: "credentials", error: "Email and password are required." };
     }
-    outcome = await startLogin(userId, email, password);
+    outcome = await startLogin(email, password);
   }
 
   if (outcome.status === "linked") {
     await prisma.user.update({
       where: { id: userId },
-      data: { picnicAuthKey: encrypt(outcome.authKey) },
+      data: { picnicAuthKey: encrypt(outcome.authKey), picnicPendingKey: null },
     });
     revalidatePath("/settings");
     redirect("/settings");
   }
 
   if (outcome.status === "2fa_required") {
+    // Persist the interim key so the verify request (possibly a different
+    // serverless instance) can reconstruct the session.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { picnicPendingKey: encrypt(outcome.pendingKey) },
+    });
     return { step: "2fa" };
   }
 
@@ -55,6 +69,9 @@ export async function picnicConnect(
 
 export async function picnicUnlink(): Promise<void> {
   const userId = await requireUserId();
-  await prisma.user.update({ where: { id: userId }, data: { picnicAuthKey: null } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { picnicAuthKey: null, picnicPendingKey: null },
+  });
   revalidatePath("/settings");
 }

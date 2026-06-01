@@ -127,8 +127,8 @@ export async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
       Accept: "text/html,application/xhtml+xml",
     },
-    // Avoid hanging forever on slow sites.
-    signal: AbortSignal.timeout(15000),
+    // Avoid hanging forever on slow sites; kept under the serverless 10s limit.
+    signal: AbortSignal.timeout(9000),
   });
 
   if (!res.ok) {
