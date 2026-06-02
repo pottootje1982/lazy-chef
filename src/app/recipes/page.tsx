@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import RecipeGrid from "./RecipeGrid";
 
 export default async function RecipesPage({
   searchParams,
@@ -63,46 +64,20 @@ export default async function RecipesPage({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe) => (
-            <Link
-              key={recipe.id}
-              href={`/recipes/${recipe.id}`}
-              className="card overflow-hidden transition hover:shadow-md"
-            >
-              {recipe.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={recipe.imageUrl}
-                  alt={recipe.title}
-                  className="h-40 w-full object-cover"
-                />
-              ) : (
-                <div className="flex h-40 w-full items-center justify-center bg-stone-100 text-4xl">
-                  🍽️
-                </div>
-              )}
-              <div className="p-4">
-                <h2 className="font-semibold leading-tight">{recipe.title}</h2>
-                {recipe.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-stone-500">{recipe.description}</p>
-                ) : null}
-                {recipe.tags.length ? (
-                  <div className="mt-3 flex flex-wrap gap-1">
-                    {recipe.tags.slice(0, 3).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            </Link>
-          ))}
-        </div>
+        <>
+          <p className="mb-4 text-sm text-stone-500">
+            Tip: select recipes with the checkboxes to order their ingredients from Picnic.
+          </p>
+          <RecipeGrid
+            recipes={recipes.map((r) => ({
+              id: r.id,
+              title: r.title,
+              description: r.description,
+              imageUrl: r.imageUrl,
+              tags: r.tags,
+            }))}
+          />
+        </>
       )}
     </div>
   );

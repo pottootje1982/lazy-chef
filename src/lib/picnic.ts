@@ -92,3 +92,15 @@ export async function searchProducts(
       imageUrl: productImageUrl(u.image_id),
     }));
 }
+
+// ---- Cart ----
+export async function addToCart(
+  authKey: string,
+  items: { picnicId: string; quantity: number }[],
+): Promise<void> {
+  if (items.length === 0) return;
+  const client = createClient(authKey);
+  await client.cart.addProductsToCart(
+    items.map((i) => ({ productId: i.picnicId, quantity: i.quantity })),
+  );
+}
