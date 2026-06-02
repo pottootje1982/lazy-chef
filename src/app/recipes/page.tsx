@@ -22,7 +22,13 @@ export default async function RecipesPage({
 
   const { q, cat } = await searchParams;
   const query = q?.trim();
-  const activeCat = CATEGORIES.find((c) => c.key === cat)?.key;
+
+  // Multiple categories allowed (comma-separated); a recipe matching ANY of
+  // them is shown (OR via Prisma `hasSome`).
+  const validKeys = new Set(CATEGORIES.map((c) => c.key as string));
+  const activeCats = [
+    ...new Set((cat ?? "").split(",").map((s) => s.trim()).filter((s) => validKeys.has(s))),
+  ];
 
   const [recipes, lists] = await Promise.all([
     prisma.recipe.findMany({
@@ -36,7 +42,7 @@ export default async function RecipesPage({
               ],
             }
           : {}),
-        ...(activeCat ? { categories: { has: activeCat } } : {}),
+        ...(activeCats.length ? { categories: { hasSome: activeCats } } : {}),
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -48,20 +54,33 @@ export default async function RecipesPage({
   ]);
 
   // Hide pinned grocery lists while filtering by recipe category.
-  const listCards = activeCat
+  const listCards = activeCats.length
     ? []
     : lists.map((l) => ({ id: l.id, name: l.name, itemCount: l._count.items }));
-  const showOnboarding = !query && !activeCat && recipes.length === 0 && lists.length === 0;
+  const showOnboarding =
+    !query && activeCats.length === 0 && recipes.length === 0 && lists.length === 0;
 
-  // Build a category chip href, preserving the active search term.
+  // Toggle a chip in/out of the active set, preserving the search term.
+  // `key` undefined = the "All" chip (clears categories).
   const chipHref = (key?: string) => {
+    const next = !key
+      ? []
+      : activeCats.includes(key)
+        ? activeCats.filter((k) => k !== key)
+        : [...activeCats, key];
     const p = new URLSearchParams();
     if (query) p.set("q", query);
-    if (key) p.set("cat", key);
+    if (next.length) p.set("cat", next.join(","));
     const s = p.toString();
     return s ? `/recipes?${s}` : "/recipes";
   };
-  const activeLabel = CATEGORIES.find((c) => c.key === activeCat)?.label;
+  const chipClass = (active: boolean) =>
+    `rounded-full px-3 py-1 text-sm transition ${
+      active ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+    }`;
+  const catLabel = activeCats
+    .map((k) => CATEGORIES.find((c) => c.key === k)!.label.toLowerCase())
+    .join(" or ");
 
   return (
     <div>
@@ -74,33 +93,18 @@ export default async function RecipesPage({
             placeholder="Search title or tag…"
             className="input max-w-xs"
           />
-          {activeCat ? <input type="hidden" name="cat" value={activeCat} /> : null}
+          {activeCats.length ? <input type="hidden" name="cat" value={activeCats.join(",")} /> : null}
           <button className="btn-secondary">Search</button>
         </form>
       </div>
 
-      {/* Category filter chips */}
+      {/* Category filter chips (multi-select, OR) */}
       <div className="mb-6 flex flex-wrap gap-2">
-        <Link
-          href={chipHref()}
-          className={`rounded-full px-3 py-1 text-sm transition ${
-            !activeCat
-              ? "bg-brand-600 text-white"
-              : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-          }`}
-        >
+        <Link href={chipHref()} className={chipClass(activeCats.length === 0)}>
           All
         </Link>
         {CATEGORIES.map((c) => (
-          <Link
-            key={c.key}
-            href={chipHref(c.key)}
-            className={`rounded-full px-3 py-1 text-sm transition ${
-              activeCat === c.key
-                ? "bg-brand-600 text-white"
-                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-            }`}
-          >
+          <Link key={c.key} href={chipHref(c.key)} className={chipClass(activeCats.includes(c.key))}>
             {c.label}
           </Link>
         ))}
@@ -122,15 +126,14 @@ export default async function RecipesPage({
         <>
           {recipes.length === 0 ? (
             <p className="mb-4 text-stone-500">
-              No {activeLabel ? `${activeLabel.toLowerCase()} ` : ""}recipes
+              No {catLabel ? `${catLabel} ` : ""}recipes
               {query ? ` match “${query}”` : ""}.
             </p>
           ) : (
             <p className="mb-4 text-sm text-stone-500">
-              {activeLabel ? `${recipes.length} ${activeLabel.toLowerCase()} ` : "Tip: select "}
-              {activeLabel
-                ? `recipe${recipes.length === 1 ? "" : "s"}.`
-                : "recipes or grocery lists with the checkboxes to order from Picnic."}
+              {catLabel
+                ? `${recipes.length} ${catLabel} recipe${recipes.length === 1 ? "" : "s"}.`
+                : "Tip: select recipes or grocery lists with the checkboxes to order from Picnic."}
             </p>
           )}
           <RecipeGrid
