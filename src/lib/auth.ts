@@ -11,7 +11,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // Trust the deployment host so callback URLs resolve behind Vercel's proxy.
   trustHost: true,
   providers: [
-    Google,
+    // Link a Google sign-in to an existing account with the same (Google-verified)
+    // email — otherwise users who registered with email/password hit
+    // OAuthAccountNotLinked when signing in with Google.
+    Google({ allowDangerousEmailAccountLinking: true }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
