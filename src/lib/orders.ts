@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeIngredient } from "@/lib/translate";
+import { normalizeIngredient, parseCount } from "@/lib/translate";
 import { productImageUrl } from "@/lib/picnic";
 
 // Pantry staples that usually come in big packs and are likely already owned
@@ -22,7 +22,8 @@ export type OrderProduct = {
   imageUrl: string | null;
   priceCents: number | null;
   unitQuantity: string | null;
-  quantity: number;
+  quantity: number; // amount to order (summed countable amounts / list quantities)
+  recipeCount: number; // how many recipe ingredient lines reference this product
   isStaple: boolean;
   defaultSelected: boolean;
 };
@@ -83,9 +84,11 @@ export async function aggregateOrder(
         unmappedCount++;
         return { label: raw, mappedName: null, unmapped: true };
       }
+      const n = parseCount(raw);
       const existing = cart.get(m.picnicId);
       if (existing) {
-        existing.quantity += 1;
+        existing.quantity += n;
+        existing.recipeCount += 1;
       } else {
         cart.set(m.picnicId, {
           picnicId: m.picnicId,
@@ -94,7 +97,8 @@ export async function aggregateOrder(
           imageUrl: productImageUrl(m.imageId),
           priceCents: m.priceCents,
           unitQuantity: m.unitQuantity,
-          quantity: 1,
+          quantity: n,
+          recipeCount: 1,
           ingredientKey: m.ingredientKey,
           isStaple: false,
           defaultSelected: false,
@@ -122,6 +126,7 @@ export async function aggregateOrder(
           priceCents: it.priceCents,
           unitQuantity: it.unitQuantity,
           quantity: it.quantity,
+          recipeCount: 0,
           ingredientKey: "",
           isStaple: false,
           defaultSelected: false,
@@ -143,10 +148,11 @@ export async function aggregateOrder(
       priceCents: it.priceCents,
       unitQuantity: it.unitQuantity,
       quantity: it.quantity,
+      recipeCount: it.recipeCount,
       isStaple,
       // Grocery items are intentionally curated → default on. Recipe-only
       // products default on unless a staple or used in more than one recipe.
-      defaultSelected: it.fromGrocery ? true : !isStaple && it.quantity < 2,
+      defaultSelected: it.fromGrocery ? true : !isStaple && it.recipeCount < 2,
     };
   });
 

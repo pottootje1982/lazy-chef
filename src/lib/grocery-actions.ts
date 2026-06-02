@@ -76,6 +76,21 @@ export async function addGroceryItem(
   revalidatePath("/groceries");
 }
 
+export async function setGroceryItemQuantity(
+  itemId: string,
+  quantity: number,
+): Promise<void> {
+  const userId = await writerId();
+  if (!userId) return;
+  const q = Math.max(1, Math.min(99, Math.floor(Number(quantity) || 1)));
+  // Scope the update to the caller's lists.
+  await prisma.groceryItem.updateMany({
+    where: { id: itemId, list: { userId } },
+    data: { quantity: q },
+  });
+  revalidatePath("/groceries");
+}
+
 export async function removeGroceryItem(itemId: string): Promise<void> {
   const userId = await writerId();
   if (!userId) return;

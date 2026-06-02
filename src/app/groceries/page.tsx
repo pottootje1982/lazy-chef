@@ -74,6 +74,7 @@ export default async function GroceriesPage() {
               imageUrl: productImageUrl(it.imageId),
               priceCents: it.priceCents,
               unitQuantity: it.unitQuantity,
+              quantity: it.quantity,
             }));
             return isGuest ? (
               <section key={list.id} className="card p-5">
@@ -84,7 +85,12 @@ export default async function GroceriesPage() {
                   ) : (
                     items.map((it) => (
                       <li key={it.id} className="flex justify-between gap-3">
-                        <span className="truncate">{it.productName}</span>
+                        <span className="truncate">
+                          {it.productName}
+                          {it.quantity > 1 ? (
+                            <span className="ml-1 text-stone-400">×{it.quantity}</span>
+                          ) : null}
+                        </span>
                         <span className="flex-none text-stone-400">
                           {[it.unitQuantity, euro(it.priceCents)].filter(Boolean).join(" · ")}
                         </span>

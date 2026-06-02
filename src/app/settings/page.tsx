@@ -21,6 +21,7 @@ export default async function SettingsPage() {
   ]);
   const linked = Boolean(user?.picnicAuthKey);
   const paprikaLinked = Boolean(user?.paprikaEmail);
+  const isGuest = Boolean(session.user.isGuest);
 
   const euro = (cents: number) => "€" + (cents / 100).toFixed(2).replace(".", ",");
   const fmtDate = (d: Date | null) =>
@@ -51,6 +52,12 @@ export default async function SettingsPage() {
             <PicnicConnect />
           )}
         </div>
+
+        {linked && !isGuest ? (
+          <Link href="/ingredients" className="mt-3 inline-block text-sm text-brand-600 hover:underline">
+            Link recipe ingredients to products →
+          </Link>
+        ) : null}
       </div>
 
       <div className="card mt-6 p-6">

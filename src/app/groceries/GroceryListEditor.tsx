@@ -6,6 +6,7 @@ import {
   deleteList,
   addGroceryItem,
   removeGroceryItem,
+  setGroceryItemQuantity,
 } from "@/lib/grocery-actions";
 
 type Item = {
@@ -15,7 +16,39 @@ type Item = {
   imageUrl: string | null;
   priceCents: number | null;
   unitQuantity: string | null;
+  quantity: number;
 };
+
+function QtyStepper({ id, initial }: { id: string; initial: number }) {
+  const [qty, setQty] = useState(initial);
+  function change(delta: number) {
+    const next = Math.max(1, Math.min(99, qty + delta));
+    if (next === qty) return;
+    setQty(next);
+    void setGroceryItemQuantity(id, next).catch(() => {});
+  }
+  return (
+    <div className="flex flex-none items-center gap-1">
+      <button
+        onClick={() => change(-1)}
+        disabled={qty <= 1}
+        className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+        aria-label="Decrease quantity"
+      >
+        −
+      </button>
+      <span className="w-5 text-center text-sm tabular-nums">{qty}</span>
+      <button
+        onClick={() => change(1)}
+        disabled={qty >= 99}
+        className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+        aria-label="Increase quantity"
+      >
+        +
+      </button>
+    </div>
+  );
+}
 
 type SearchProduct = {
   picnicId: string;
@@ -130,6 +163,7 @@ export default function GroceryListEditor({
                   {[it.unitQuantity, euro(it.priceCents)].filter(Boolean).join(" · ")}
                 </p>
               </div>
+              <QtyStepper id={it.id} initial={it.quantity} />
               <button
                 onClick={() => removeGroceryItem(it.id)}
                 className="flex-none px-2 text-stone-400 hover:text-red-600"

@@ -35,10 +35,12 @@ export default async function OrderPage({
   // Persist the current order as a DRAFT (selected recipes + lists + products)
   // so the selection survives reloads. Guests don't persist anything.
   let initialSelectedIds = defaultSelectedIds(agg.products);
+  let initialQuantities: Record<string, number> = {};
   if (!isGuest) {
     const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
     if (draft && sameSelection(draft.recipeIds, draft.listIds, recipeIds, listIds)) {
       initialSelectedIds = draft.selectedProductIds;
+      initialQuantities = (draft.selectedQuantities ?? {}) as Record<string, number>;
     } else {
       const data = {
         recipeIds,
@@ -46,6 +48,7 @@ export default async function OrderPage({
         listIds,
         listTitles: agg.listTitles,
         selectedProductIds: initialSelectedIds,
+        selectedQuantities: {},
         status: "DRAFT" as const,
       };
       if (draft) await prisma.order.update({ where: { id: draft.id }, data });
@@ -125,9 +128,11 @@ export default async function OrderPage({
           priceCents: p.priceCents,
           unitQuantity: p.unitQuantity,
           quantity: p.quantity,
+          recipeCount: p.recipeCount,
           isStaple: p.isStaple,
         }))}
         initialSelectedIds={initialSelectedIds}
+        initialQuantities={initialQuantities}
         unmappedCount={agg.unmappedCount}
         picnicLinked={picnicLinked}
         isGuest={isGuest}

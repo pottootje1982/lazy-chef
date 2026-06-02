@@ -22,6 +22,23 @@ export async function saveOrderSelection(selectedProductIds: string[]): Promise<
   });
 }
 
+// Autosave per-product quantity overrides ({ picnicId: qty }) onto the DRAFT.
+export async function saveOrderQuantities(
+  quantities: Record<string, number>,
+): Promise<void> {
+  const userId = await writerId();
+  if (!userId) return;
+  const clamped: Record<string, number> = {};
+  for (const [id, q] of Object.entries(quantities ?? {})) {
+    if (typeof id !== "string" || !id) continue;
+    clamped[id] = Math.max(1, Math.min(99, Math.floor(Number(q) || 1)));
+  }
+  await prisma.order.updateMany({
+    where: { userId, status: "DRAFT" },
+    data: { selectedQuantities: clamped },
+  });
+}
+
 // Finalise the DRAFT order after it's been added to the Picnic cart: snapshot
 // the chosen products and flip it to PLACED so it appears under previous orders.
 export async function placeCurrentOrder(): Promise<void> {
@@ -41,6 +58,9 @@ export async function placeCurrentOrder(): Promise<void> {
   const chosen = products.filter((p) => draft.selectedProductIds.includes(p.picnicId));
   if (chosen.length === 0) return;
 
+  // Apply user quantity overrides captured in the order overview.
+  const overrides = (draft.selectedQuantities ?? {}) as Record<string, number>;
+
   await prisma.order.update({
     where: { id: draft.id },
     data: {
@@ -55,7 +75,7 @@ export async function placeCurrentOrder(): Promise<void> {
           imageId: p.imageId,
           priceCents: p.priceCents,
           unitQuantity: p.unitQuantity,
-          quantity: p.quantity,
+          quantity: overrides[p.picnicId] ?? p.quantity,
         })),
       },
     },

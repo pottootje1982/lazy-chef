@@ -134,6 +134,7 @@ model Order {
   listIds            String[] // selected grocery lists
   listTitles         String[] // snapshot of list names for display
   selectedProductIds String[] // currently-ticked Picnic product ids
+  selectedQuantities Json? // per-product quantity overrides { picnicId: qty }
   placedAt           DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
