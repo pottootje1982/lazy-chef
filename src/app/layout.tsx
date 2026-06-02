@@ -1,11 +1,17 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import "./globals.css";
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
+import NavBar from "@/components/NavBar";
 
 export const metadata: Metadata = {
   title: "Recipe Manager",
   description: "Store recipes and import them from the web.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default async function RootLayout({
@@ -18,54 +24,20 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        <header className="border-b border-stone-200 bg-white">
+        <header className="relative border-b border-stone-200 bg-white">
           <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
             <Link href="/" className="text-lg font-bold text-brand-600">
               🍳 Recipe Manager
             </Link>
             {session?.user ? (
-              <nav className="flex items-center gap-3">
-                <Link href="/recipes" className="text-sm text-stone-600 hover:text-stone-900">
-                  My Recipes
-                </Link>
-                <Link href="/groceries" className="text-sm text-stone-600 hover:text-stone-900">
-                  Groceries
-                </Link>
-                {/* Write actions are hidden for the read-only guest account. */}
-                {session.user.isGuest ? null : (
-                  <>
-                    <Link
-                      href="/recipes/import"
-                      className="text-sm text-stone-600 hover:text-stone-900"
-                    >
-                      Import
-                    </Link>
-                    <Link href="/recipes/new" className="btn-primary !py-1.5">
-                      + New
-                    </Link>
-                    <Link href="/settings" className="text-sm text-stone-600 hover:text-stone-900">
-                      Settings
-                    </Link>
-                  </>
-                )}
-                <div className="flex items-center gap-2 border-l border-stone-200 pl-3">
-                  <span className="hidden text-sm text-stone-500 sm:inline">
-                    {session.user.isGuest
-                      ? "Guest"
-                      : (session.user.name ?? session.user.email)}
-                  </span>
-                  <form
-                    action={async () => {
-                      "use server";
-                      await signOut({ redirectTo: "/login" });
-                    }}
-                  >
-                    <button className="text-sm text-stone-500 hover:text-stone-900">
-                      Sign out
-                    </button>
-                  </form>
-                </div>
-              </nav>
+              <NavBar
+                isGuest={Boolean(session.user.isGuest)}
+                displayName={
+                  session.user.isGuest
+                    ? "Guest"
+                    : (session.user.name ?? session.user.email ?? "")
+                }
+              />
             ) : null}
           </div>
         </header>

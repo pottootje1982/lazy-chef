@@ -2,11 +2,15 @@
 
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
-import { signIn } from "@/lib/auth";
+import { signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { loginSchema, registerSchema } from "@/lib/validation";
 
 export type AuthFormState = { error?: string } | undefined;
+
+export async function signOutAction(): Promise<void> {
+  await signOut({ redirectTo: "/login" });
+}
 
 export async function loginWithCredentials(
   _prev: AuthFormState,
