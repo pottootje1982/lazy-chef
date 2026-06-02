@@ -12,6 +12,9 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  if (session.user.isGuest) {
+    return NextResponse.json({ error: "Guest account is read-only." }, { status: 403 });
+  }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user?.picnicAuthKey) {

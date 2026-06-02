@@ -25,6 +25,7 @@ export default async function RecipeDetailPage({
     prisma.productMapping.findMany({ where: { userId: session.user.id } }),
   ]);
   const picnicLinked = Boolean(user?.picnicAuthKey);
+  const isGuest = Boolean(session.user.isGuest);
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
 
   const ingredientItems: IngredientItem[] = recipe.ingredients.map((raw) => {
@@ -59,14 +60,16 @@ export default async function RecipeDetailPage({
             <p className="mt-2 text-stone-600">{recipe.description}</p>
           ) : null}
         </div>
-        <div className="flex gap-2">
-          <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
-            Edit
-          </Link>
-          <form action={deleteAction}>
-            <button className="btn-danger">Delete</button>
-          </form>
-        </div>
+        {isGuest ? null : (
+          <div className="flex gap-2">
+            <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
+              Edit
+            </Link>
+            <form action={deleteAction}>
+              <button className="btn-danger">Delete</button>
+            </form>
+          </div>
+        )}
       </div>
 
       {recipe.imageUrl ? (
@@ -113,13 +116,17 @@ export default async function RecipeDetailPage({
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Ingredients</h2>
-            {picnicLinked ? null : (
+            {isGuest || picnicLinked ? null : (
               <Link href="/settings" className="text-xs text-brand-600 hover:underline">
                 Connect Picnic
               </Link>
             )}
           </div>
-          <IngredientList items={ingredientItems} picnicLinked={picnicLinked} />
+          <IngredientList
+            items={ingredientItems}
+            picnicLinked={picnicLinked}
+            readOnly={isGuest}
+          />
         </section>
 
         <section>

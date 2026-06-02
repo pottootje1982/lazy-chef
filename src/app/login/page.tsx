@@ -13,6 +13,11 @@ export default async function LoginPage() {
     await signIn("google", { redirectTo: "/recipes" });
   }
 
+  async function guestSignIn() {
+    "use server";
+    await signIn("guest", { redirectTo: "/recipes" });
+  }
+
   return (
     <div className="mx-auto max-w-md">
       <div className="card p-8 text-center">
@@ -33,6 +38,17 @@ export default async function LoginPage() {
         </div>
 
         <AuthForm mode="login" action={loginWithCredentials} />
+
+        <div className="mt-6 border-t border-stone-200 pt-4">
+          <form action={guestSignIn}>
+            <button type="submit" className="text-sm text-stone-500 hover:text-brand-600">
+              Just looking? Continue as guest →
+            </button>
+          </form>
+          <p className="mt-1 text-xs text-stone-400">
+            Browse example recipes in a read-only demo account.
+          </p>
+        </div>
       </div>
     </div>
   );

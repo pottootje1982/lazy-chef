@@ -22,12 +22,14 @@ export default function OrderActions({
   totalCents,
   unmappedCount,
   picnicLinked,
+  isGuest = false,
 }: {
   items: CartItem[];
   totalProducts: number;
   totalCents: number;
   unmappedCount: number;
   picnicLinked: boolean;
+  isGuest?: boolean;
 }) {
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +98,11 @@ export default function OrderActions({
           ) : null}
         </div>
 
-        {picnicLinked ? (
+        {isGuest ? (
+          <span className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-500">
+            Sign in to order with Picnic
+          </span>
+        ) : picnicLinked ? (
           <button
             onClick={addToCart}
             disabled={status === "loading" || items.length === 0}

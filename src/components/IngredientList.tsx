@@ -28,7 +28,15 @@ function euro(cents: number | null): string | null {
   return "€" + (cents / 100).toFixed(2).replace(".", ",");
 }
 
-function Row({ item, picnicLinked }: { item: IngredientItem; picnicLinked: boolean }) {
+function Row({
+  item,
+  picnicLinked,
+  readOnly,
+}: {
+  item: IngredientItem;
+  picnicLinked: boolean;
+  readOnly: boolean;
+}) {
   const [product, setProduct] = useState<LinkedProduct | null>(item.product);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -129,7 +137,7 @@ function Row({ item, picnicLinked }: { item: IngredientItem; picnicLinked: boole
           <span className="mt-0.5 text-brand-500">•</span>
           <span className="text-sm">{item.raw}</span>
         </div>
-        {product ? null : picnicLinked ? (
+        {readOnly || product ? null : picnicLinked ? (
           <button
             onClick={openLinker}
             className="flex-none text-xs font-medium text-brand-600 hover:underline"
@@ -167,17 +175,19 @@ function Row({ item, picnicLinked }: { item: IngredientItem; picnicLinked: boole
               {[product.unitQuantity, euro(product.priceCents)].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <div className="flex flex-none gap-2">
-            <button
-              onClick={openLinker}
-              className="text-xs text-stone-500 hover:text-brand-600"
-            >
-              Change
-            </button>
-            <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
-              Unlink
-            </button>
-          </div>
+          {readOnly ? null : (
+            <div className="flex flex-none gap-2">
+              <button
+                onClick={openLinker}
+                className="text-xs text-stone-500 hover:text-brand-600"
+              >
+                Change
+              </button>
+              <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
+                Unlink
+              </button>
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -245,9 +255,11 @@ function Row({ item, picnicLinked }: { item: IngredientItem; picnicLinked: boole
 export default function IngredientList({
   items,
   picnicLinked,
+  readOnly = false,
 }: {
   items: IngredientItem[];
   picnicLinked: boolean;
+  readOnly?: boolean;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-stone-400">No ingredients listed.</p>;
@@ -255,7 +267,7 @@ export default function IngredientList({
   return (
     <ul className="space-y-2">
       {items.map((item, i) => (
-        <Row key={i} item={item} picnicLinked={picnicLinked} />
+        <Row key={i} item={item} picnicLinked={picnicLinked} readOnly={readOnly} />
       ))}
     </ul>
   );

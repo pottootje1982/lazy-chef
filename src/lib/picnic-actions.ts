@@ -12,9 +12,10 @@ export type PicnicConnectState = {
   error?: string;
 };
 
-async function requireUserId(): Promise<string> {
+async function requireNonGuest(): Promise<string> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
+  if (session.user.isGuest) redirect("/settings"); // read-only guest: no-op
   return session.user.id;
 }
 
@@ -22,7 +23,7 @@ export async function picnicConnect(
   _prev: PicnicConnectState | undefined,
   formData: FormData,
 ): Promise<PicnicConnectState> {
-  const userId = await requireUserId();
+  const userId = await requireNonGuest();
   const code = (formData.get("code") as string | null)?.trim();
 
   let outcome;
@@ -68,7 +69,7 @@ export async function picnicConnect(
 }
 
 export async function picnicUnlink(): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireNonGuest();
   await prisma.user.update({
     where: { id: userId },
     data: { picnicAuthKey: null, picnicPendingKey: null },

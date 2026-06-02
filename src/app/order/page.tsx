@@ -38,6 +38,7 @@ export default async function OrderPage({
   if (recipes.length === 0) redirect("/recipes");
 
   const picnicLinked = Boolean(user?.picnicAuthKey);
+  const isGuest = Boolean(session.user.isGuest);
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
 
   // Per-recipe breakdown + an aggregated cart (sum duplicate products).
@@ -163,6 +164,7 @@ export default async function OrderPage({
           totalCents={totalCents}
           unmappedCount={unmappedCount}
           picnicLinked={picnicLinked}
+          isGuest={isGuest}
         />
       </div>
     </div>

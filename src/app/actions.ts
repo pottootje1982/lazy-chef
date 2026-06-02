@@ -33,17 +33,20 @@ function parseForm(formData: FormData) {
   });
 }
 
-async function requireUserId(): Promise<string> {
+async function requireUser(): Promise<{ id: string; isGuest: boolean }> {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
-  return session.user.id;
+  return { id: session.user.id, isGuest: Boolean(session.user.isGuest) };
 }
+
+const GUEST_ERROR = "This is a read-only guest account. Sign in to make changes.";
 
 export async function createRecipe(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const userId = await requireUserId();
+  const { id: userId, isGuest } = await requireUser();
+  if (isGuest) return { error: GUEST_ERROR };
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -75,7 +78,8 @@ export async function updateRecipe(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const userId = await requireUserId();
+  const { id: userId, isGuest } = await requireUser();
+  if (isGuest) return { error: GUEST_ERROR };
   const parsed = parseForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -110,7 +114,8 @@ export async function updateRecipe(
 }
 
 export async function deleteRecipe(id: string): Promise<void> {
-  const userId = await requireUserId();
+  const { id: userId, isGuest } = await requireUser();
+  if (isGuest) redirect(`/recipes/${id}`); // read-only guest: no-op
   // deleteMany scopes by userId so users can only delete their own recipes.
   await prisma.recipe.deleteMany({ where: { id, userId } });
   revalidatePath("/recipes");

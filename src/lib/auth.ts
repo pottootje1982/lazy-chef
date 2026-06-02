@@ -33,7 +33,30 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const valid = await bcrypt.compare(parsed.data.password, user.passwordHash);
         if (!valid) return null;
 
-        return { id: user.id, name: user.name, email: user.email, image: user.image };
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          isGuest: user.isGuest,
+        };
+      },
+    }),
+    // Passwordless sign-in as the shared read-only demo account.
+    Credentials({
+      id: "guest",
+      name: "Guest",
+      credentials: {},
+      async authorize() {
+        const guest = await prisma.user.findFirst({ where: { isGuest: true } });
+        if (!guest) return null;
+        return {
+          id: guest.id,
+          name: guest.name,
+          email: guest.email,
+          image: guest.image,
+          isGuest: true,
+        };
       },
     }),
   ],
@@ -45,11 +68,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        // `user` is the authorize() return (credentials) or adapter row (OAuth);
+        // both carry isGuest.
+        token.isGuest = Boolean((user as { isGuest?: boolean }).isGuest);
+      }
       return token;
     },
     session({ session, token }) {
-      if (session.user && token.id) session.user.id = token.id as string;
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+        session.user.isGuest = Boolean(token.isGuest);
+      }
       return session;
     },
   },
