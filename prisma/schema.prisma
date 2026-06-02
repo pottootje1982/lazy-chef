@@ -77,6 +77,7 @@ model Recipe {
   ingredients  String[]
   instructions String[]
   tags         String[]
+  categories   String[] @default([]) // derived: vegetarian, vegan, fish, meat, dessert
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
