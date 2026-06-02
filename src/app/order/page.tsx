@@ -4,11 +4,19 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeIngredient } from "@/lib/translate";
 import { productImageUrl } from "@/lib/picnic";
-import OrderActions, { type CartItem } from "./OrderActions";
+import OrderCart, { type OrderItem } from "./OrderCart";
 
-function euro(cents: number | null | undefined): string | null {
-  if (cents == null) return null;
-  return "€" + (cents / 100).toFixed(2).replace(".", ",");
+// Pantry staples that usually come in big packs and are likely already in the
+// cupboard (the user's examples: olive oil, garlic). Matched against the
+// English-normalized ingredient key. Deselected by default — fully overridable.
+const STAPLE_KEYWORDS = [
+  "oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey",
+  "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin",
+  "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy",
+  "baking", "yeast", "water", "mustard",
+];
+function isStapleKey(key: string): boolean {
+  return STAPLE_KEYWORDS.some((s) => key.includes(s));
 }
 
 export default async function OrderPage({
@@ -41,15 +49,11 @@ export default async function OrderPage({
   const isGuest = Boolean(session.user.isGuest);
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
 
-  // Per-recipe breakdown + an aggregated cart (sum duplicate products).
-  type Row = {
-    raw: string;
-    product:
-      | { picnicId: string; name: string; imageUrl: string | null; priceCents: number | null; unitQuantity: string | null }
-      | null;
-  };
+  // Per-recipe breakdown (for context) + a deduped product list (the cart).
+  type Row = { raw: string; productName: string | null };
   const sections: { id: string; title: string; rows: Row[] }[] = [];
-  const cart = new Map<string, CartItem>();
+  type Agg = OrderItem & { ingredientKey: string };
+  const cart = new Map<string, Agg>();
   let unmappedCount = 0;
 
   for (const recipe of recipes) {
@@ -57,30 +61,40 @@ export default async function OrderPage({
       const m = byKey.get(normalizeIngredient(raw));
       if (!m) {
         unmappedCount++;
-        return { raw, product: null };
+        return { raw, productName: null };
       }
-      const item: CartItem = {
-        picnicId: m.picnicId,
-        name: m.productName,
-        imageUrl: productImageUrl(m.imageId),
-        priceCents: m.priceCents,
-        unitQuantity: m.unitQuantity,
-        quantity: 1,
-      };
       const existing = cart.get(m.picnicId);
-      if (existing) existing.quantity += 1;
-      else cart.set(m.picnicId, { ...item });
-      return { raw, product: item };
+      if (existing) {
+        existing.quantity += 1;
+      } else {
+        cart.set(m.picnicId, {
+          picnicId: m.picnicId,
+          name: m.productName,
+          imageUrl: productImageUrl(m.imageId),
+          priceCents: m.priceCents,
+          unitQuantity: m.unitQuantity,
+          quantity: 1,
+          ingredientKey: m.ingredientKey,
+          isStaple: isStapleKey(m.ingredientKey),
+          defaultSelected: false, // set below
+        });
+      }
+      return { raw, productName: m.productName };
     });
     sections.push({ id: recipe.id, title: recipe.title, rows });
   }
 
-  const cartItems = [...cart.values()];
-  const totalCents = cartItems.reduce(
-    (sum, i) => sum + (i.priceCents ?? 0) * i.quantity,
-    0,
-  );
-  const totalProducts = cartItems.reduce((sum, i) => sum + i.quantity, 0);
+  // Default selection: on, unless it's a staple or appears in >1 recipe.
+  const items: OrderItem[] = [...cart.values()].map((it) => ({
+    picnicId: it.picnicId,
+    name: it.name,
+    imageUrl: it.imageUrl,
+    priceCents: it.priceCents,
+    unitQuantity: it.unitQuantity,
+    quantity: it.quantity,
+    isStaple: it.isStaple,
+    defaultSelected: !it.isStaple && it.quantity < 2,
+  }));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -89,9 +103,7 @@ export default async function OrderPage({
       </Link>
       <h1 className="mt-3 text-2xl font-bold">Order overview</h1>
       <p className="mt-1 text-sm text-stone-500">
-        {totalProducts} product{totalProducts === 1 ? "" : "s"} from {recipes.length} recipe
-        {recipes.length === 1 ? "" : "s"}
-        {totalCents ? ` · ${euro(totalCents)} estimated` : ""}
+        {recipes.length} recipe{recipes.length === 1 ? "" : "s"}
         {unmappedCount > 0 ? (
           <span className="ml-1 font-medium text-amber-700">
             · {unmappedCount} ingredient{unmappedCount === 1 ? "" : "s"} without a product
@@ -99,10 +111,11 @@ export default async function OrderPage({
         ) : null}
       </p>
 
-      <div className="mt-6 space-y-6">
+      {/* Per-recipe breakdown (context). */}
+      <div className="mt-6 space-y-4">
         {sections.map((section) => (
-          <section key={section.id} className="card p-5">
-            <div className="mb-3 flex items-center justify-between">
+          <section key={section.id} className="card p-4">
+            <div className="mb-2 flex items-center justify-between">
               <h2 className="font-semibold">{section.title}</h2>
               <Link
                 href={`/recipes/${section.id}`}
@@ -111,43 +124,25 @@ export default async function OrderPage({
                 View recipe
               </Link>
             </div>
-            <ul className="space-y-2">
+            <ul className="space-y-1 text-sm">
               {section.rows.map((row, i) =>
-                row.product ? (
-                  <li key={i} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2">
-                    {row.product.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={row.product.imageUrl}
-                        alt={row.product.name}
-                        className="h-10 w-10 flex-none rounded object-cover"
-                      />
-                    ) : (
-                      <div className="flex h-10 w-10 flex-none items-center justify-center rounded bg-stone-200">
-                        🛒
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">{row.product.name}</p>
-                      <p className="text-xs text-stone-500">
-                        {[row.product.unitQuantity, euro(row.product.priceCents)]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    </div>
-                    <span className="flex-none text-xs text-stone-400">{row.raw}</span>
+                row.productName ? (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-brand-500">•</span>
+                    <span className="text-stone-700">{row.raw}</span>
+                    <span className="truncate text-stone-400">→ {row.productName}</span>
                   </li>
                 ) : (
                   <li
                     key={i}
-                    className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 p-2"
+                    className="flex items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1"
                   >
-                    <span className="text-sm text-amber-900">{row.raw}</span>
+                    <span className="text-amber-900">{row.raw}</span>
                     <Link
                       href={`/recipes/${section.id}`}
                       className="flex-none text-xs font-medium text-amber-700 hover:underline"
                     >
-                      No product — link one
+                      no product — link one
                     </Link>
                   </li>
                 ),
@@ -157,16 +152,13 @@ export default async function OrderPage({
         ))}
       </div>
 
-      <div className="sticky bottom-4 mt-6">
-        <OrderActions
-          items={cartItems}
-          totalProducts={totalProducts}
-          totalCents={totalCents}
-          unmappedCount={unmappedCount}
-          picnicLinked={picnicLinked}
-          isGuest={isGuest}
-        />
-      </div>
+      {/* Deduped, selectable shopping list + order action. */}
+      <OrderCart
+        items={items}
+        unmappedCount={unmappedCount}
+        picnicLinked={picnicLinked}
+        isGuest={isGuest}
+      />
     </div>
   );
 }
