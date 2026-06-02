@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { saveOrderSelection, placeCurrentOrder } from "@/lib/order-actions";
 
 export type OrderItem = {
   picnicId: string;
@@ -11,7 +12,6 @@ export type OrderItem = {
   unitQuantity: string | null;
   quantity: number; // how many of the selected recipes use this product
   isStaple: boolean;
-  defaultSelected: boolean;
 };
 
 function euro(cents: number): string {
@@ -20,28 +20,31 @@ function euro(cents: number): string {
 
 export default function OrderCart({
   items,
+  initialSelectedIds,
   unmappedCount,
   picnicLinked,
   isGuest = false,
 }: {
   items: OrderItem[];
+  initialSelectedIds: string[];
   unmappedCount: number;
   picnicLinked: boolean;
   isGuest?: boolean;
 }) {
+  const ids = new Set(items.map((i) => i.picnicId));
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(items.filter((i) => i.defaultSelected).map((i) => i.picnicId)),
+    () => new Set(initialSelectedIds.filter((id) => ids.has(id))),
   );
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [error, setError] = useState<string | null>(null);
 
   function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelected(next);
+    // Autosave the selection to the draft order (non-guests only).
+    if (!isGuest) void saveOrderSelection([...next]).catch(() => {});
   }
 
   const chosen = items.filter((i) => selected.has(i.picnicId));
@@ -69,6 +72,8 @@ export default function OrderCart({
         setStatus("idle");
         return;
       }
+      // Record the placed order so it shows under Settings → Previous orders.
+      await placeCurrentOrder().catch(() => {});
       setStatus("done");
     } catch {
       setError("Something went wrong adding to your Picnic cart.");
@@ -95,7 +100,6 @@ export default function OrderCart({
       <ul className="card divide-y divide-stone-100">
         {items.map((item) => {
           const isOn = selected.has(item.picnicId);
-          // Why it's off by default — shown as a hint.
           const reason = item.isStaple
             ? "pantry staple"
             : item.quantity > 1
@@ -151,14 +155,19 @@ export default function OrderCart({
             <p className="text-sm font-medium text-green-800">
               ✓ Added {totalProducts} product{totalProducts === 1 ? "" : "s"} to your Picnic cart.
             </p>
-            <a
-              href="https://picnic.app"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-1 inline-block text-sm text-green-700 underline hover:text-green-900"
-            >
-              Open Picnic to choose a delivery slot and check out →
-            </a>
+            <div className="mt-1 flex flex-wrap gap-3 text-sm">
+              <a
+                href="https://picnic.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-green-700 underline hover:text-green-900"
+              >
+                Open Picnic to check out →
+              </a>
+              <Link href="/settings" className="text-green-700 underline hover:text-green-900">
+                View in previous orders
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-stone-200 bg-white p-4 shadow-lg">

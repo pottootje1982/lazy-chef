@@ -23,6 +23,7 @@ model User {
   sessions      Session[]
   recipes       Recipe[]
   mappings      ProductMapping[]
+  orders        Order[]
   createdAt     DateTime  @default(now())
 }
 
@@ -109,4 +110,43 @@ model ProductMapping {
 model Translation {
   source String @id // normalized english
   target String // dutch
+}
+
+enum OrderStatus {
+  DRAFT // the current selection, autosaved
+  PLACED // sent to the Picnic cart; shows under "previous orders"
+}
+
+// An order groups selected recipes + chosen products. One DRAFT per user holds
+// the current selection; placing it (Add to Picnic cart) flips it to PLACED.
+model Order {
+  id                 String      @id @default(cuid())
+  userId             String
+  status             OrderStatus @default(DRAFT)
+  recipeIds          String[] // selected recipes
+  recipeTitles       String[] // snapshot of titles for display
+  selectedProductIds String[] // currently-ticked Picnic product ids
+  placedAt           DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items OrderItem[] // product snapshot, populated when placed
+
+  @@index([userId, status])
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  picnicId     String
+  productName  String
+  imageId      String?
+  priceCents   Int?
+  unitQuantity String?
+  quantity     Int     @default(1)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
