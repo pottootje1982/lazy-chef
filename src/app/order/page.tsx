@@ -2,43 +2,49 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { aggregateOrder, defaultSelectedIds, sameRecipeSet } from "@/lib/orders";
+import { aggregateOrder, defaultSelectedIds, sameSelection } from "@/lib/orders";
 import OrderCart from "./OrderCart";
+
+function parseIds(value: string | undefined): string[] {
+  return (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
 
 export default async function OrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string }>;
+  searchParams: Promise<{ ids?: string; lists?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const userId = session.user.id;
   const isGuest = Boolean(session.user.isGuest);
 
-  const { ids } = await searchParams;
-  const idList = (ids ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (idList.length === 0) redirect("/recipes");
+  const sp = await searchParams;
+  const recipeIds = parseIds(sp.ids);
+  const listIds = parseIds(sp.lists);
+  if (recipeIds.length === 0 && listIds.length === 0) redirect("/recipes");
 
   const [user, agg] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { picnicAuthKey: true } }),
-    aggregateOrder(userId, idList),
+    aggregateOrder(userId, recipeIds, listIds),
   ]);
-  if (agg.perRecipe.length === 0) redirect("/recipes");
+  if (agg.sections.length === 0) redirect("/recipes");
 
   const picnicLinked = Boolean(user?.picnicAuthKey);
 
-  // Persist the current order as a DRAFT (selected recipes + products) so the
-  // selection survives reloads. Guests don't persist anything.
+  // Persist the current order as a DRAFT (selected recipes + lists + products)
+  // so the selection survives reloads. Guests don't persist anything.
   let initialSelectedIds = defaultSelectedIds(agg.products);
   if (!isGuest) {
     const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
-    if (draft && sameRecipeSet(draft.recipeIds, idList)) {
-      // Resume the existing draft — keep the user's saved selection.
+    if (draft && sameSelection(draft.recipeIds, draft.listIds, recipeIds, listIds)) {
       initialSelectedIds = draft.selectedProductIds;
     } else {
       const data = {
-        recipeIds: idList,
+        recipeIds,
         recipeTitles: agg.recipeTitles,
+        listIds,
+        listTitles: agg.listTitles,
         selectedProductIds: initialSelectedIds,
         status: "DRAFT" as const,
       };
@@ -47,6 +53,8 @@ export default async function OrderPage({
     }
   }
 
+  const sourceCount = agg.sections.length;
+
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
@@ -54,7 +62,7 @@ export default async function OrderPage({
       </Link>
       <h1 className="mt-3 text-2xl font-bold">Order overview</h1>
       <p className="mt-1 text-sm text-stone-500">
-        {agg.perRecipe.length} recipe{agg.perRecipe.length === 1 ? "" : "s"}
+        {sourceCount} list{sourceCount === 1 ? "" : "s"} &amp; recipes
         {agg.unmappedCount > 0 ? (
           <span className="ml-1 font-medium text-amber-700">
             · {agg.unmappedCount} ingredient{agg.unmappedCount === 1 ? "" : "s"} without a product
@@ -62,39 +70,44 @@ export default async function OrderPage({
         ) : null}
       </p>
 
-      {/* Per-recipe breakdown (context). */}
+      {/* Per-source breakdown (recipes + grocery lists). */}
       <div className="mt-6 space-y-4">
-        {agg.perRecipe.map((section) => (
-          <section key={section.id} className="card p-4">
+        {agg.sections.map((section) => (
+          <section key={`${section.kind}-${section.id}`} className="card p-4">
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="font-semibold">{section.title}</h2>
+              <h2 className="font-semibold">
+                {section.kind === "list" ? "🛒 " : ""}
+                {section.title}
+              </h2>
               <Link
-                href={`/recipes/${section.id}`}
+                href={section.kind === "list" ? "/groceries" : `/recipes/${section.id}`}
                 className="text-xs text-stone-500 hover:text-brand-600"
               >
-                View recipe
+                {section.kind === "list" ? "Edit list" : "View recipe"}
               </Link>
             </div>
             <ul className="space-y-1 text-sm">
               {section.rows.map((row, i) =>
-                row.productName ? (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-brand-500">•</span>
-                    <span className="text-stone-700">{row.raw}</span>
-                    <span className="truncate text-stone-400">→ {row.productName}</span>
-                  </li>
-                ) : (
+                row.unmapped ? (
                   <li
                     key={i}
                     className="flex items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1"
                   >
-                    <span className="text-amber-900">{row.raw}</span>
+                    <span className="text-amber-900">{row.label}</span>
                     <Link
                       href={`/recipes/${section.id}`}
                       className="flex-none text-xs font-medium text-amber-700 hover:underline"
                     >
                       no product — link one
                     </Link>
+                  </li>
+                ) : (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-brand-500">•</span>
+                    <span className="text-stone-700">{row.label}</span>
+                    {row.mappedName ? (
+                      <span className="truncate text-stone-400">→ {row.mappedName}</span>
+                    ) : null}
                   </li>
                 ),
               )}

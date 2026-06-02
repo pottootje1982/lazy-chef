@@ -28,6 +28,9 @@ export default async function RootLayout({
                 <Link href="/recipes" className="text-sm text-stone-600 hover:text-stone-900">
                   My Recipes
                 </Link>
+                <Link href="/groceries" className="text-sm text-stone-600 hover:text-stone-900">
+                  Groceries
+                </Link>
                 {/* Write actions are hidden for the read-only guest account. */}
                 {session.user.isGuest ? null : (
                   <>

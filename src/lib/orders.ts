@@ -27,42 +27,61 @@ export type OrderProduct = {
   defaultSelected: boolean;
 };
 
-export type OrderRecipeRow = { raw: string; productName: string | null };
+// A line in a breakdown section. For recipe ingredients, `label` is the raw
+// ingredient and `mappedName` is the linked product (null + unmapped = no link).
+// For grocery items, `label` is the product name and it's always mapped.
+export type OrderRow = { label: string; mappedName: string | null; unmapped: boolean };
+
+export type OrderSection = {
+  id: string;
+  title: string;
+  kind: "recipe" | "list";
+  rows: OrderRow[];
+};
 
 export type AggregatedOrder = {
   recipeTitles: string[];
-  perRecipe: { id: string; title: string; rows: OrderRecipeRow[] }[];
+  listTitles: string[];
+  sections: OrderSection[];
   products: OrderProduct[];
   unmappedCount: number;
 };
 
-// Resolve the selected recipes into a per-recipe breakdown and a deduped list
-// of products (summing duplicates). Shared by the order page and place action
-// so both compute identical results.
+type CartEntry = OrderProduct & { ingredientKey: string; fromGrocery: boolean };
+
+// Resolve the selected recipes + grocery lists into per-source breakdown
+// sections and a deduped list of products (summing duplicates). Shared by the
+// order page and place action so both compute identical results.
 export async function aggregateOrder(
   userId: string,
   recipeIds: string[],
+  listIds: string[] = [],
 ): Promise<AggregatedOrder> {
-  const [recipes, mappings] = await Promise.all([
+  const [recipes, mappings, lists] = await Promise.all([
     prisma.recipe.findMany({
       where: { id: { in: recipeIds }, userId },
       orderBy: { createdAt: "desc" },
     }),
     prisma.productMapping.findMany({ where: { userId } }),
+    prisma.groceryList.findMany({
+      where: { id: { in: listIds }, userId },
+      orderBy: { createdAt: "desc" },
+      include: { items: true },
+    }),
   ]);
 
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
-  const cart = new Map<string, OrderProduct & { ingredientKey: string }>();
+  const cart = new Map<string, CartEntry>();
   let unmappedCount = 0;
+  const sections: OrderSection[] = [];
 
-  const perRecipe = recipes.map((recipe) => ({
-    id: recipe.id,
-    title: recipe.title,
-    rows: recipe.ingredients.map((raw): OrderRecipeRow => {
+  // Recipes → ingredients → mapped products.
+  for (const recipe of recipes) {
+    const rows = recipe.ingredients.map((raw): OrderRow => {
       const m = byKey.get(normalizeIngredient(raw));
       if (!m) {
         unmappedCount++;
-        return { raw, productName: null };
+        return { label: raw, mappedName: null, unmapped: true };
       }
       const existing = cart.get(m.picnicId);
       if (existing) {
@@ -79,11 +98,40 @@ export async function aggregateOrder(
           ingredientKey: m.ingredientKey,
           isStaple: false,
           defaultSelected: false,
+          fromGrocery: false,
         });
       }
-      return { raw, productName: m.productName };
-    }),
-  }));
+      return { label: raw, mappedName: m.productName, unmapped: false };
+    });
+    sections.push({ id: recipe.id, title: recipe.title, kind: "recipe", rows });
+  }
+
+  // Grocery lists → products directly.
+  for (const list of lists) {
+    const rows = list.items.map((it): OrderRow => {
+      const existing = cart.get(it.picnicId);
+      if (existing) {
+        existing.quantity += it.quantity;
+        existing.fromGrocery = true;
+      } else {
+        cart.set(it.picnicId, {
+          picnicId: it.picnicId,
+          name: it.productName,
+          imageId: it.imageId,
+          imageUrl: productImageUrl(it.imageId),
+          priceCents: it.priceCents,
+          unitQuantity: it.unitQuantity,
+          quantity: it.quantity,
+          ingredientKey: "",
+          isStaple: false,
+          defaultSelected: false,
+          fromGrocery: true,
+        });
+      }
+      return { label: it.productName, mappedName: null, unmapped: false };
+    });
+    sections.push({ id: list.id, title: list.name, kind: "list", rows });
+  }
 
   const products: OrderProduct[] = [...cart.values()].map((it) => {
     const isStaple = isStapleKey(it.ingredientKey);
@@ -96,20 +144,37 @@ export async function aggregateOrder(
       unitQuantity: it.unitQuantity,
       quantity: it.quantity,
       isStaple,
-      // Default on, unless it's a staple or used in more than one recipe.
-      defaultSelected: !isStaple && it.quantity < 2,
+      // Grocery items are intentionally curated → default on. Recipe-only
+      // products default on unless a staple or used in more than one recipe.
+      defaultSelected: it.fromGrocery ? true : !isStaple && it.quantity < 2,
     };
   });
 
-  return { recipeTitles: recipes.map((r) => r.title), perRecipe, products, unmappedCount };
+  return {
+    recipeTitles: recipes.map((r) => r.title),
+    listTitles: lists.map((l) => l.name),
+    sections,
+    products,
+    unmappedCount,
+  };
 }
 
 export function defaultSelectedIds(products: OrderProduct[]): string[] {
   return products.filter((p) => p.defaultSelected).map((p) => p.picnicId);
 }
 
-export function sameRecipeSet(a: string[], b: string[]): boolean {
+function sameSet(a: string[], b: string[]): boolean {
   if (a.length !== b.length) return false;
   const set = new Set(a);
   return b.every((id) => set.has(id));
+}
+
+// A DRAFT can be resumed only when both the recipe and list selections match.
+export function sameSelection(
+  draftRecipeIds: string[],
+  draftListIds: string[],
+  recipeIds: string[],
+  listIds: string[],
+): boolean {
+  return sameSet(draftRecipeIds, recipeIds) && sameSet(draftListIds, listIds);
 }

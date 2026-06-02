@@ -74,8 +74,10 @@ export default async function SettingsPage() {
                       {total ? ` · ${euro(total)}` : ""}
                     </span>
                   </div>
-                  {order.recipeTitles.length ? (
-                    <p className="mt-1 text-xs text-stone-500">{order.recipeTitles.join(" · ")}</p>
+                  {order.recipeTitles.length || order.listTitles.length ? (
+                    <p className="mt-1 text-xs text-stone-500">
+                      {[...order.recipeTitles, ...order.listTitles.map((t) => `🛒 ${t}`)].join(" · ")}
+                    </p>
                   ) : null}
                   <ul className="mt-3 space-y-1 text-sm text-stone-600">
                     {order.items.map((item) => (

@@ -33,7 +33,11 @@ export async function placeCurrentOrder(): Promise<void> {
   });
   if (!draft) return;
 
-  const { products, recipeTitles } = await aggregateOrder(userId, draft.recipeIds);
+  const { products, recipeTitles, listTitles } = await aggregateOrder(
+    userId,
+    draft.recipeIds,
+    draft.listIds,
+  );
   const chosen = products.filter((p) => draft.selectedProductIds.includes(p.picnicId));
   if (chosen.length === 0) return;
 
@@ -43,6 +47,7 @@ export async function placeCurrentOrder(): Promise<void> {
       status: "PLACED",
       placedAt: new Date(),
       recipeTitles,
+      listTitles,
       items: {
         create: chosen.map((p) => ({
           picnicId: p.picnicId,

@@ -24,6 +24,7 @@ model User {
   recipes       Recipe[]
   mappings      ProductMapping[]
   orders        Order[]
+  groceryLists  GroceryList[]
   createdAt     DateTime  @default(now())
 }
 
@@ -125,6 +126,8 @@ model Order {
   status             OrderStatus @default(DRAFT)
   recipeIds          String[] // selected recipes
   recipeTitles       String[] // snapshot of titles for display
+  listIds            String[] // selected grocery lists
+  listTitles         String[] // snapshot of list names for display
   selectedProductIds String[] // currently-ticked Picnic product ids
   placedAt           DateTime?
   createdAt          DateTime    @default(now())
@@ -149,4 +152,34 @@ model OrderItem {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
+}
+
+// A named, reusable list of Picnic products ("weekly recurring groceries").
+// Orderable like a recipe; never shown in the recipe grid.
+model GroceryList {
+  id        String        @id @default(cuid())
+  userId    String
+  name      String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     GroceryItem[]
+
+  @@index([userId])
+}
+
+model GroceryItem {
+  id           String  @id @default(cuid())
+  listId       String
+  picnicId     String
+  productName  String
+  imageId      String?
+  priceCents   Int?
+  unitQuantity String?
+  quantity     Int     @default(1)
+
+  list GroceryList @relation(fields: [listId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, picnicId])
+  @@index([listId])
 }

@@ -12,12 +12,25 @@ export type RecipeCard = {
   tags: string[];
 };
 
-export default function RecipeGrid({ recipes }: { recipes: RecipeCard[] }) {
-  const router = useRouter();
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+export type GroceryListCard = {
+  id: string;
+  name: string;
+  itemCount: number;
+};
 
-  function toggle(id: string) {
-    setSelected((prev) => {
+export default function RecipeGrid({
+  recipes,
+  lists,
+}: {
+  recipes: RecipeCard[];
+  lists: GroceryListCard[];
+}) {
+  const router = useRouter();
+  const [recipeSel, setRecipeSel] = useState<Set<string>>(new Set());
+  const [listSel, setListSel] = useState<Set<string>>(new Set());
+
+  function toggle(setter: typeof setRecipeSel, id: string) {
+    setter((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -25,16 +38,63 @@ export default function RecipeGrid({ recipes }: { recipes: RecipeCard[] }) {
     });
   }
 
-  function order() {
-    if (selected.size === 0) return;
-    router.push(`/order?ids=${[...selected].join(",")}`);
+  function clear() {
+    setRecipeSel(new Set());
+    setListSel(new Set());
   }
+
+  function order() {
+    const params = new URLSearchParams();
+    if (recipeSel.size) params.set("ids", [...recipeSel].join(","));
+    if (listSel.size) params.set("lists", [...listSel].join(","));
+    if (![...params].length) return;
+    router.push(`/order?${params.toString()}`);
+  }
+
+  const totalSelected = recipeSel.size + listSel.size;
 
   return (
     <div>
+      {/* Pinned recurring-grocery lists (not recipes). */}
+      {lists.length > 0 ? (
+        <div className="mb-6">
+          <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-400">
+            Weekly groceries
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {lists.map((list) => {
+              const isSelected = listSel.has(list.id);
+              return (
+                <div
+                  key={list.id}
+                  className={`card flex items-center gap-3 p-3 transition hover:shadow-md ${
+                    isSelected ? "ring-2 ring-brand-500" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggle(setListSel, list.id)}
+                    className="h-4 w-4 flex-none accent-brand-600"
+                    title="Select for ordering"
+                  />
+                  <span className="text-xl">🛒</span>
+                  <Link href="/groceries" className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{list.name}</p>
+                    <p className="text-xs text-stone-500">
+                      {list.itemCount} product{list.itemCount === 1 ? "" : "s"}
+                    </p>
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {recipes.map((recipe) => {
-          const isSelected = selected.has(recipe.id);
+          const isSelected = recipeSel.has(recipe.id);
           return (
             <div
               key={recipe.id}
@@ -42,7 +102,6 @@ export default function RecipeGrid({ recipes }: { recipes: RecipeCard[] }) {
                 isSelected ? "ring-2 ring-brand-500" : ""
               }`}
             >
-              {/* Selection checkbox overlay (kept above the link). */}
               <label
                 className="absolute left-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white/90 shadow-sm"
                 title="Select for ordering"
@@ -50,7 +109,7 @@ export default function RecipeGrid({ recipes }: { recipes: RecipeCard[] }) {
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  onChange={() => toggle(recipe.id)}
+                  onChange={() => toggle(setRecipeSel, recipe.id)}
                   className="h-4 w-4 accent-brand-600"
                 />
               </label>
@@ -88,14 +147,20 @@ export default function RecipeGrid({ recipes }: { recipes: RecipeCard[] }) {
         })}
       </div>
 
-      {/* Sticky order bar, shown once at least one recipe is selected. */}
-      {selected.size > 0 ? (
+      {/* Sticky order bar, shown once anything is selected. */}
+      {totalSelected > 0 ? (
         <div className="sticky bottom-4 mt-6 flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-lg">
           <span className="text-sm text-stone-600">
-            {selected.size} recipe{selected.size > 1 ? "s" : ""} selected
+            {[
+              recipeSel.size ? `${recipeSel.size} recipe${recipeSel.size > 1 ? "s" : ""}` : null,
+              listSel.size ? `${listSel.size} list${listSel.size > 1 ? "s" : ""}` : null,
+            ]
+              .filter(Boolean)
+              .join(" + ")}{" "}
+            selected
           </span>
           <div className="flex gap-2">
-            <button onClick={() => setSelected(new Set())} className="btn-secondary">
+            <button onClick={clear} className="btn-secondary">
               Clear
             </button>
             <button onClick={order} className="btn-primary">

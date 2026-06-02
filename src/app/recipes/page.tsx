@@ -15,20 +15,30 @@ export default async function RecipesPage({
   const { q } = await searchParams;
   const query = q?.trim();
 
-  const recipes = await prisma.recipe.findMany({
-    where: {
-      userId: session.user.id,
-      ...(query
-        ? {
-            OR: [
-              { title: { contains: query, mode: "insensitive" } },
-              { tags: { has: query.toLowerCase() } },
-            ],
-          }
-        : {}),
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const [recipes, lists] = await Promise.all([
+    prisma.recipe.findMany({
+      where: {
+        userId: session.user.id,
+        ...(query
+          ? {
+              OR: [
+                { title: { contains: query, mode: "insensitive" } },
+                { tags: { has: query.toLowerCase() } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.groceryList.findMany({
+      where: { userId: session.user.id },
+      orderBy: { createdAt: "desc" },
+      include: { _count: { select: { items: true } } },
+    }),
+  ]);
+
+  const listCards = lists.map((l) => ({ id: l.id, name: l.name, itemCount: l._count.items }));
+  const showOnboarding = !query && recipes.length === 0 && lists.length === 0;
 
   return (
     <div>
@@ -45,29 +55,27 @@ export default async function RecipesPage({
         </form>
       </div>
 
-      {recipes.length === 0 ? (
+      {showOnboarding ? (
         <div className="card p-10 text-center text-stone-500">
-          {query ? (
-            <p>No recipes match “{query}”.</p>
-          ) : (
-            <>
-              <p className="mb-4">You don&apos;t have any recipes yet.</p>
-              <div className="flex justify-center gap-3">
-                <Link href="/recipes/new" className="btn-primary">
-                  Add one manually
-                </Link>
-                <Link href="/recipes/import" className="btn-secondary">
-                  Import from a URL
-                </Link>
-              </div>
-            </>
-          )}
+          <p className="mb-4">You don&apos;t have any recipes yet.</p>
+          <div className="flex justify-center gap-3">
+            <Link href="/recipes/new" className="btn-primary">
+              Add one manually
+            </Link>
+            <Link href="/recipes/import" className="btn-secondary">
+              Import from a URL
+            </Link>
+          </div>
         </div>
       ) : (
         <>
-          <p className="mb-4 text-sm text-stone-500">
-            Tip: select recipes with the checkboxes to order their ingredients from Picnic.
-          </p>
+          {query && recipes.length === 0 ? (
+            <p className="mb-4 text-stone-500">No recipes match “{query}”.</p>
+          ) : (
+            <p className="mb-4 text-sm text-stone-500">
+              Tip: select recipes or grocery lists with the checkboxes to order from Picnic.
+            </p>
+          )}
           <RecipeGrid
             recipes={recipes.map((r) => ({
               id: r.id,
@@ -76,6 +84,7 @@ export default async function RecipesPage({
               imageUrl: r.imageUrl,
               tags: r.tags,
             }))}
+            lists={listCards}
           />
         </>
       )}

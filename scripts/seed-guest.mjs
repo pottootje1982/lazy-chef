@@ -125,6 +125,21 @@ for (const link of productLinks) {
   });
 }
 
-console.log(`Seeded guest (${guest.id}): ${recipes.length} recipes, ${productLinks.length} product links.`);
+// Example recurring-groceries list (read-only demo).
+await prisma.groceryList.deleteMany({ where: { userId: guest.id } });
+const weekly = await prisma.groceryList.create({ data: { userId: guest.id, name: "Weekly basics" } });
+const groceries = [
+  { picnicId: "demo-milk", name: "Halfvolle melk", priceCents: 119, unit: "1 l" },
+  { picnicId: "demo-eggs", name: "Vrije uitloop eieren", priceCents: 229, unit: "10 st" },
+  { picnicId: "demo-coffee", name: "Koffiebonen", priceCents: 599, unit: "500 g" },
+  { picnicId: "demo-bread", name: "Volkoren brood", priceCents: 159, unit: "800 g" },
+];
+for (const g of groceries) {
+  await prisma.groceryItem.create({
+    data: { listId: weekly.id, picnicId: g.picnicId, productName: g.name, imageId: null, priceCents: g.priceCents, unitQuantity: g.unit },
+  });
+}
+
+console.log(`Seeded guest (${guest.id}): ${recipes.length} recipes, ${productLinks.length} product links, 1 grocery list (${groceries.length} items).`);
 console.log("Mapping keys:", productLinks.map((l) => norm(l.raw)).join(", "));
 await prisma.$disconnect();
