@@ -1,8 +1,11 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import Link from "next/link";
 import { picnicUnlink } from "@/lib/picnic-actions";
+import { paprikaDisconnect } from "@/lib/paprika-actions";
 import PicnicConnect from "./PicnicConnect";
+import PaprikaConnect from "./PaprikaConnect";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -17,6 +20,7 @@ export default async function SettingsPage() {
     }),
   ]);
   const linked = Boolean(user?.picnicAuthKey);
+  const paprikaLinked = Boolean(user?.paprikaEmail);
 
   const euro = (cents: number) => "€" + (cents / 100).toFixed(2).replace(".", ",");
   const fmtDate = (d: Date | null) =>
@@ -45,6 +49,33 @@ export default async function SettingsPage() {
             </div>
           ) : (
             <PicnicConnect />
+          )}
+        </div>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h2 className="text-lg font-semibold">Paprika sync</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Connect your Paprika account to import your recipes into this app.
+        </p>
+        <div className="mt-5">
+          {paprikaLinked ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                <span className="flex items-center gap-2 text-sm font-medium text-green-800">
+                  <span className="h-2 w-2 rounded-full bg-green-500" /> Connected as{" "}
+                  {user?.paprikaEmail}
+                </span>
+                <form action={paprikaDisconnect}>
+                  <button className="btn-danger !py-1.5">Disconnect</button>
+                </form>
+              </div>
+              <Link href="/recipes/import/paprika" className="btn-primary">
+                Import recipes from Paprika →
+              </Link>
+            </div>
+          ) : (
+            <PaprikaConnect />
           )}
         </div>
       </div>

@@ -19,6 +19,8 @@ model User {
   isGuest       Boolean  @default(false) // read-only demo account
   picnicAuthKey String? // AES-GCM encrypted Picnic auth key; null if not linked
   picnicPendingKey String? // AES-GCM encrypted interim auth key during 2FA login; null otherwise
+  paprikaEmail    String? // Paprika sync account email
+  paprikaPassword String? // AES-GCM encrypted Paprika password (Basic-auth per call)
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]
@@ -78,11 +80,13 @@ model Recipe {
   instructions String[]
   tags         String[]
   categories   String[] @default([]) // derived: vegetarian, vegan, fish, meat, dessert
+  paprikaUid   String? // source Paprika recipe uid (for dedup on re-sync)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, paprikaUid])
   @@index([userId])
 }
 
