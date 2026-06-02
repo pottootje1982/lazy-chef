@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { signOutAction } from "@/lib/auth-actions";
 
 type NavLink = { href: string; label: string; primary?: boolean };
@@ -14,6 +14,17 @@ export default function NavBar({
   displayName: string;
 }) {
   const [open, setOpen] = useState(false);
+
+  // Close the mobile menu when the viewport grows to desktop, so it doesn't
+  // reappear already-open when shrinking back down.
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) setOpen(false);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const links: NavLink[] = [
     { href: "/recipes", label: "My Recipes" },
