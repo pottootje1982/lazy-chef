@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ignoreIngredient, unignoreIngredient } from "@/lib/ingredient-actions";
 
 export type UnlinkedItem = {
   key: string;
@@ -10,6 +11,13 @@ export type UnlinkedItem = {
   recipes: { id: string; title: string }[]; // recipes that use this ingredient
   words: string[]; // Dutch chip words
   prefill: string; // Dutch search term to prefill
+};
+
+export type IgnoredItem = {
+  key: string;
+  raw: string;
+  count: number;
+  recipes: { id: string; title: string }[];
 };
 
 type LinkedProduct = {
@@ -36,7 +44,7 @@ type SearchProduct = {
   imageUrl: string | null;
 };
 
-type View = "all" | "unlinked" | "linked";
+type View = "all" | "unlinked" | "linked" | "ignored";
 const VIEW_KEY = "rm.ingredientFilter";
 
 function euro(cents: number | null): string | null {
@@ -91,7 +99,34 @@ function LinkedRow({ item }: { item: LinkedItem }) {
   );
 }
 
-function Row({ item, onLinked }: { item: UnlinkedItem; onLinked: (p: SearchProduct) => void }) {
+function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () => void }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="text-sm text-stone-500 line-through">{item.raw}</span>
+          <RecipeLinks recipes={item.recipes} />
+        </div>
+      </div>
+      <button
+        onClick={onUnignore}
+        className="flex-none rounded-full bg-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-300"
+      >
+        Un-ignore
+      </button>
+    </li>
+  );
+}
+
+function Row({
+  item,
+  onLinked,
+  onIgnore,
+}: {
+  item: UnlinkedItem;
+  onLinked: (p: SearchProduct) => void;
+  onIgnore: () => void;
+}) {
   // Prefill the search box with the Dutch search term.
   const [query, setQuery] = useState(item.prefill || item.words.join(" "));
   const [results, setResults] = useState<SearchProduct[]>([]);
@@ -157,9 +192,18 @@ function Row({ item, onLinked }: { item: UnlinkedItem; onLinked: (p: SearchProdu
 
   return (
     <li className="rounded-lg border border-stone-200 p-3">
-      <div className="flex flex-wrap items-baseline gap-2">
-        <span className="text-sm font-medium">{item.raw}</span>
-        <RecipeLinks recipes={item.recipes} />
+      <div className="flex items-baseline gap-2">
+        <div className="flex flex-1 flex-wrap items-baseline gap-2">
+          <span className="text-sm font-medium">{item.raw}</span>
+          <RecipeLinks recipes={item.recipes} />
+        </div>
+        <button
+          onClick={onIgnore}
+          title="Hide this junk line"
+          className="flex-none text-xs text-stone-400 hover:text-red-600"
+        >
+          Ignore
+        </button>
       </div>
 
       {/* Word chips + manual search */}
@@ -225,20 +269,28 @@ function Row({ item, onLinked }: { item: UnlinkedItem; onLinked: (p: SearchProdu
 export default function BulkLinkClient({
   unlinked,
   linked,
+  ignored,
 }: {
   unlinked: UnlinkedItem[];
   linked: LinkedItem[];
+  ignored: IgnoredItem[];
 }) {
   const [view, setView] = useState<View>("all");
   const [filter, setFilter] = useState("");
-  // Keys linked this session, and the resulting linked items (moved live).
+  // Live session moves: dismissed keys drop out of the unlinked list; the other
+  // lists collect items linked/ignored this session (or restored via un-ignore).
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
   const [sessionLinked, setSessionLinked] = useState<LinkedItem[]>([]);
+  const [sessionIgnored, setSessionIgnored] = useState<IgnoredItem[]>([]);
+  const [serverIgnoredHidden, setServerIgnoredHidden] = useState<Set<string>>(() => new Set());
+  const [restoredUnlinked, setRestoredUnlinked] = useState<UnlinkedItem[]>([]);
+
+  const originalUnlinkedKeys = useMemo(() => new Set(unlinked.map((i) => i.key)), [unlinked]);
 
   // Load the persisted filter selection.
   useEffect(() => {
     const v = localStorage.getItem(VIEW_KEY);
-    if (v === "all" || v === "unlinked" || v === "linked") setView(v);
+    if (v === "all" || v === "unlinked" || v === "linked" || v === "ignored") setView(v);
   }, []);
 
   function changeView(v: View) {
@@ -265,31 +317,69 @@ export default function BulkLinkClient({
     ]);
   }
 
+  function handleIgnore(item: UnlinkedItem) {
+    setDismissed((prev) => new Set(prev).add(item.key));
+    setSessionIgnored((prev) => [
+      { key: item.key, raw: item.raw, count: item.count, recipes: item.recipes },
+      ...prev,
+    ]);
+    void ignoreIngredient(item.key).catch(() => {});
+  }
+
+  function handleUnignore(item: IgnoredItem) {
+    setSessionIgnored((prev) => prev.filter((x) => x.key !== item.key));
+    setServerIgnoredHidden((prev) => new Set(prev).add(item.key));
+    if (originalUnlinkedKeys.has(item.key)) {
+      // It was unlinked before being ignored — just un-dismiss it.
+      setDismissed((prev) => {
+        const n = new Set(prev);
+        n.delete(item.key);
+        return n;
+      });
+    } else {
+      // A previously-saved ignored line: restore it to unlinked (no Dutch prefill).
+      setRestoredUnlinked((prev) => [
+        { key: item.key, raw: item.raw, count: item.count, recipes: item.recipes, words: [], prefill: "" },
+        ...prev,
+      ]);
+    }
+    void unignoreIngredient(item.key).catch(() => {});
+  }
+
   const f = filter.trim().toLowerCase();
   const match = (raw: string, key: string) =>
     !f || raw.toLowerCase().includes(f) || key.includes(f);
 
   const unlinkedAll = useMemo(
-    () => unlinked.filter((i) => !dismissed.has(i.key)),
-    [unlinked, dismissed],
+    () => [...unlinked, ...restoredUnlinked].filter((i) => !dismissed.has(i.key)),
+    [unlinked, restoredUnlinked, dismissed],
   );
   const linkedAll = useMemo(
-    () =>
-      [...sessionLinked, ...linked].sort((a, b) => a.raw.localeCompare(b.raw)),
+    () => [...sessionLinked, ...linked].sort((a, b) => a.raw.localeCompare(b.raw)),
     [linked, sessionLinked],
+  );
+  const ignoredAll = useMemo(
+    () =>
+      [...sessionIgnored, ...ignored.filter((i) => !serverIgnoredHidden.has(i.key))].sort((a, b) =>
+        a.raw.localeCompare(b.raw),
+      ),
+    [ignored, sessionIgnored, serverIgnoredHidden],
   );
 
   const unlinkedShown = unlinkedAll.filter((i) => match(i.raw, i.key));
   const linkedShown = linkedAll.filter((i) => match(i.raw, i.key));
+  const ignoredShown = ignoredAll.filter((i) => match(i.raw, i.key));
 
   const chips: { v: View; label: string; n: number }[] = [
     { v: "all", label: "All", n: unlinkedAll.length + linkedAll.length },
     { v: "unlinked", label: "Unlinked", n: unlinkedAll.length },
     { v: "linked", label: "Linked", n: linkedAll.length },
+    { v: "ignored", label: "Ignored", n: ignoredAll.length },
   ];
 
-  const showUnlinked = view !== "linked";
-  const showLinked = view !== "unlinked";
+  const showUnlinked = view === "all" || view === "unlinked";
+  const showLinked = view === "all" || view === "linked";
+  const showIgnored = view === "ignored";
 
   return (
     <div>
@@ -324,7 +414,12 @@ export default function BulkLinkClient({
           ) : null}
           <ul className="space-y-2">
             {unlinkedShown.map((item) => (
-              <Row key={item.key} item={item} onLinked={(p) => handleLinked(item, p)} />
+              <Row
+                key={item.key}
+                item={item}
+                onLinked={(p) => handleLinked(item, p)}
+                onIgnore={() => handleIgnore(item)}
+              />
             ))}
           </ul>
           {unlinkedShown.length === 0 ? (
@@ -348,6 +443,23 @@ export default function BulkLinkClient({
           {linkedShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
               {linkedAll.length === 0 ? "No linked ingredients yet." : `No linked ingredients match “${filter}”.`}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {showIgnored ? (
+        <section>
+          <ul className="space-y-2">
+            {ignoredShown.map((item) => (
+              <IgnoredRow key={item.key} item={item} onUnignore={() => handleUnignore(item)} />
+            ))}
+          </ul>
+          {ignoredShown.length === 0 ? (
+            <p className="py-4 text-sm text-stone-400">
+              {ignoredAll.length === 0
+                ? "Nothing ignored. Use “Ignore” on a junk line to hide it here."
+                : `No ignored ingredients match “${filter}”.`}
             </p>
           ) : null}
         </section>

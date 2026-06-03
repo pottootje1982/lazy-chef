@@ -24,6 +24,8 @@ model User {
   // Pantry staple keywords: linked ingredients whose normalized key contains one
   // of these are unticked by default when ordering. Seeded with sensible defaults.
   pantryKeywords String[] @default(["oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey", "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin", "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy", "baking", "yeast", "water", "mustard"])
+  // Normalized ingredient keys the user has hidden from the linking page (junk lines).
+  ignoredIngredients String[] @default([])
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]

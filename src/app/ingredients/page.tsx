@@ -4,7 +4,11 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { productImageUrl } from "@/lib/picnic";
 import { normalizeIngredient, translateMany } from "@/lib/translate";
-import BulkLinkClient, { type UnlinkedItem, type LinkedItem } from "./BulkLinkClient";
+import BulkLinkClient, {
+  type UnlinkedItem,
+  type LinkedItem,
+  type IgnoredItem,
+} from "./BulkLinkClient";
 
 // Descriptors/units the (English-centric) normalizer doesn't strip but which
 // aren't useful as search chips — mostly Dutch units, qualifiers and glue.
@@ -70,7 +74,10 @@ export default async function IngredientsPage() {
   const isGuest = Boolean(session.user.isGuest);
 
   const [user, recipes, mappings] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { picnicAuthKey: true, ignoredIngredients: true },
+    }),
     prisma.recipe.findMany({
       where: { userId: session.user.id },
       select: { id: true, title: true, ingredients: true },
@@ -88,6 +95,7 @@ export default async function IngredientsPage() {
   ]);
   const picnicLinked = Boolean(user?.picnicAuthKey);
   const mapByKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
+  const ignoredSet = new Set(user?.ignoredIngredients ?? []);
 
   // Deduped set of every recipe ingredient, tracking which recipes use each.
   const byKey = new Map<string, { raw: string; recipes: Map<string, string> }>();
@@ -104,9 +112,15 @@ export default async function IngredientsPage() {
   const recipesOf = (v: { recipes: Map<string, string> }) =>
     [...v.recipes].map(([id, title]) => ({ id, title }));
 
+  // Ignored ingredients (junk lines the user hid) take precedence over linking.
+  const ignored: IgnoredItem[] = entries
+    .filter(([key]) => ignoredSet.has(key))
+    .map(([key, v]) => ({ key, raw: v.raw, count: v.recipes.size, recipes: recipesOf(v) }))
+    .sort((a, b) => a.raw.localeCompare(b.raw));
+
   // Linked ingredients: recipe ingredients that already have a product mapping.
   const linked: LinkedItem[] = entries
-    .filter(([key]) => mapByKey.has(key))
+    .filter(([key]) => !ignoredSet.has(key) && mapByKey.has(key))
     .map(([key, v]) => {
       const m = mapByKey.get(key)!;
       const recipes = recipesOf(v);
@@ -126,7 +140,7 @@ export default async function IngredientsPage() {
     .sort((a, b) => a.raw.localeCompare(b.raw));
 
   // Unlinked ingredients: translate the cleaned core to Dutch (batched + cached).
-  const unlinkedEntries = entries.filter(([key]) => !mapByKey.has(key));
+  const unlinkedEntries = entries.filter(([key]) => !ignoredSet.has(key) && !mapByKey.has(key));
   const phraseByKey = new Map(
     unlinkedEntries.map(([key, v]) => [key, cleanEnglishWords(v.raw).join(" ")]),
   );
@@ -171,12 +185,12 @@ export default async function IngredientsPage() {
             </Link>{" "}
             first to search for products.
           </div>
-        ) : linked.length === 0 && unlinked.length === 0 ? (
+        ) : linked.length === 0 && unlinked.length === 0 && ignored.length === 0 ? (
           <div className="card p-8 text-center text-sm text-stone-500">
             No recipe ingredients yet.
           </div>
         ) : (
-          <BulkLinkClient unlinked={unlinked} linked={linked} />
+          <BulkLinkClient unlinked={unlinked} linked={linked} ignored={ignored} />
         )}
       </div>
     </div>
