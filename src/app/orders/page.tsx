@@ -61,6 +61,16 @@ export default async function OrdersPage() {
                     </li>
                   ))}
                 </ul>
+                {order.unavailableItems.length ? (
+                  <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+                    <p className="text-xs font-semibold text-amber-800">🛒 Not available — buy elsewhere</p>
+                    <ul className="mt-1 space-y-0.5 text-sm text-amber-900">
+                      {order.unavailableItems.map((line, i) => (
+                        <li key={i} className="truncate">{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </li>
             );
           })}

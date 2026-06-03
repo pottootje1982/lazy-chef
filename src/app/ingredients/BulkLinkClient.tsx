@@ -6,6 +6,8 @@ import {
   ignoreIngredient,
   unignoreIngredient,
   unlinkIngredient,
+  markIngredientUnavailable,
+  markIngredientAvailable,
 } from "@/lib/ingredient-actions";
 import ProductHoverCard from "@/components/ProductHoverCard";
 
@@ -24,6 +26,9 @@ export type IgnoredItem = {
   count: number;
   recipes: { id: string; title: string }[];
 };
+
+// Same shape as IgnoredItem; an ingredient that can't be bought at the grocer.
+export type NotAvailableItem = IgnoredItem;
 
 type LinkedProduct = {
   name: string;
@@ -49,7 +54,7 @@ type SearchProduct = {
   imageUrl: string | null;
 };
 
-type View = "all" | "unlinked" | "linked" | "ignored";
+type View = "all" | "unlinked" | "linked" | "ignored" | "unavailable";
 const VIEW_KEY = "rm.ingredientFilter";
 
 function euro(cents: number | null): string | null {
@@ -306,14 +311,42 @@ function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () =>
   );
 }
 
+function NotAvailableRow({
+  item,
+  onMarkAvailable,
+}: {
+  item: NotAvailableItem;
+  onMarkAvailable: () => void;
+}) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+      <span className="flex-none text-amber-500" title="Buy elsewhere">🛒</span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="text-sm font-medium text-amber-900">{item.raw}</span>
+          <RecipeLinks recipes={item.recipes} />
+        </div>
+      </div>
+      <button
+        onClick={onMarkAvailable}
+        className="flex-none rounded-full bg-amber-200 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-300"
+      >
+        Mark available
+      </button>
+    </li>
+  );
+}
+
 function Row({
   item,
   onLinked,
   onIgnore,
+  onNotAvailable,
 }: {
   item: UnlinkedItem;
   onLinked: (p: SearchProduct) => void;
   onIgnore: () => void;
+  onNotAvailable: () => void;
 }) {
   return (
     <li className="rounded-lg border border-stone-200 p-3">
@@ -322,6 +355,13 @@ function Row({
           <span className="text-sm font-medium">{item.raw}</span>
           <RecipeLinks recipes={item.recipes} />
         </div>
+        <button
+          onClick={onNotAvailable}
+          title="Can't be bought at the grocer — buy elsewhere"
+          className="flex-none text-xs text-stone-400 hover:text-amber-700"
+        >
+          Not available
+        </button>
         <button
           onClick={onIgnore}
           title="Hide this junk line"
@@ -345,10 +385,12 @@ export default function BulkLinkClient({
   unlinked,
   linked,
   ignored,
+  unavailable,
 }: {
   unlinked: UnlinkedItem[];
   linked: LinkedItem[];
   ignored: IgnoredItem[];
+  unavailable: NotAvailableItem[];
 }) {
   const [view, setView] = useState<View>("all");
   const [filter, setFilter] = useState("");
@@ -358,6 +400,8 @@ export default function BulkLinkClient({
   const [sessionLinked, setSessionLinked] = useState<LinkedItem[]>([]);
   const [sessionIgnored, setSessionIgnored] = useState<IgnoredItem[]>([]);
   const [serverIgnoredHidden, setServerIgnoredHidden] = useState<Set<string>>(() => new Set());
+  const [sessionUnavailable, setSessionUnavailable] = useState<NotAvailableItem[]>([]);
+  const [serverUnavailableHidden, setServerUnavailableHidden] = useState<Set<string>>(() => new Set());
   const [restoredUnlinked, setRestoredUnlinked] = useState<UnlinkedItem[]>([]);
   // Linked items unlinked this session, and per-key product overrides from "Change".
   const [linkedHidden, setLinkedHidden] = useState<Set<string>>(() => new Set());
@@ -368,7 +412,9 @@ export default function BulkLinkClient({
   // Load the persisted filter selection.
   useEffect(() => {
     const v = localStorage.getItem(VIEW_KEY);
-    if (v === "all" || v === "unlinked" || v === "linked" || v === "ignored") setView(v);
+    if (v === "all" || v === "unlinked" || v === "linked" || v === "ignored" || v === "unavailable") {
+      setView(v);
+    }
   }, []);
 
   function changeView(v: View) {
@@ -461,6 +507,33 @@ export default function BulkLinkClient({
     void unignoreIngredient(item.key).catch(() => {});
   }
 
+  function handleMarkUnavailable(item: UnlinkedItem) {
+    setDismissed((prev) => new Set(prev).add(item.key));
+    setSessionUnavailable((prev) => [
+      { key: item.key, raw: item.raw, count: item.count, recipes: item.recipes },
+      ...prev,
+    ]);
+    void markIngredientUnavailable(item.key).catch(() => {});
+  }
+
+  function handleMarkAvailable(item: NotAvailableItem) {
+    setSessionUnavailable((prev) => prev.filter((x) => x.key !== item.key));
+    setServerUnavailableHidden((prev) => new Set(prev).add(item.key));
+    if (originalUnlinkedKeys.has(item.key)) {
+      setDismissed((prev) => {
+        const n = new Set(prev);
+        n.delete(item.key);
+        return n;
+      });
+    } else {
+      setRestoredUnlinked((prev) => [
+        { key: item.key, raw: item.raw, count: item.count, recipes: item.recipes, words: [], prefill: "" },
+        ...prev,
+      ]);
+    }
+    void markIngredientAvailable(item.key).catch(() => {});
+  }
+
   const f = filter.trim().toLowerCase();
   // Match the typed filter against any of the given fields (ingredient line,
   // normalized key, and — for linked rows — the Picnic product name).
@@ -486,21 +559,31 @@ export default function BulkLinkClient({
       ),
     [ignored, sessionIgnored, serverIgnoredHidden],
   );
+  const unavailableAll = useMemo(
+    () =>
+      [...sessionUnavailable, ...unavailable.filter((i) => !serverUnavailableHidden.has(i.key))].sort(
+        (a, b) => a.raw.localeCompare(b.raw),
+      ),
+    [unavailable, sessionUnavailable, serverUnavailableHidden],
+  );
 
   const unlinkedShown = unlinkedAll.filter((i) => matches(i.raw, i.key));
   const linkedShown = linkedAll.filter((i) => matches(i.raw, i.key, i.product.name));
   const ignoredShown = ignoredAll.filter((i) => matches(i.raw, i.key));
+  const unavailableShown = unavailableAll.filter((i) => matches(i.raw, i.key));
 
   const chips: { v: View; label: string; n: number }[] = [
     { v: "all", label: "All", n: unlinkedAll.length + linkedAll.length },
     { v: "unlinked", label: "Unlinked", n: unlinkedAll.length },
     { v: "linked", label: "Linked", n: linkedAll.length },
+    { v: "unavailable", label: "Not available", n: unavailableAll.length },
     { v: "ignored", label: "Ignored", n: ignoredAll.length },
   ];
 
   const showUnlinked = view === "all" || view === "unlinked";
   const showLinked = view === "all" || view === "linked";
   const showIgnored = view === "ignored";
+  const showUnavailable = view === "unavailable";
 
   return (
     <div>
@@ -540,6 +623,7 @@ export default function BulkLinkClient({
                 item={item}
                 onLinked={(p) => handleLinked(item, p)}
                 onIgnore={() => handleIgnore(item)}
+                onNotAvailable={() => handleMarkUnavailable(item)}
               />
             ))}
           </ul>
@@ -569,6 +653,31 @@ export default function BulkLinkClient({
           {linkedShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
               {linkedAll.length === 0 ? "No linked ingredients yet." : `No linked ingredients match “${filter}”.`}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {showUnavailable ? (
+        <section>
+          <p className="mb-2 text-sm text-stone-500">
+            These can&apos;t be bought at the grocer — buy them elsewhere. They appear on each
+            order that uses them.
+          </p>
+          <ul className="space-y-2">
+            {unavailableShown.map((item) => (
+              <NotAvailableRow
+                key={item.key}
+                item={item}
+                onMarkAvailable={() => handleMarkAvailable(item)}
+              />
+            ))}
+          </ul>
+          {unavailableShown.length === 0 ? (
+            <p className="py-4 text-sm text-stone-400">
+              {unavailableAll.length === 0
+                ? "Nothing flagged. Use “Not available” on an ingredient that the grocer doesn’t sell."
+                : `No items match “${filter}”.`}
             </p>
           ) : null}
         </section>

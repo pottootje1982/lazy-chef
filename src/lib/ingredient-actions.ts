@@ -27,6 +27,36 @@ export async function ignoreIngredient(key: string): Promise<void> {
   });
 }
 
+// Flag an ingredient as not available at the grocer (must be bought elsewhere).
+export async function markIngredientUnavailable(key: string): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !key) return;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { unavailableIngredients: true },
+  });
+  const current = user?.unavailableIngredients ?? [];
+  if (current.includes(key)) return;
+  await prisma.user.update({
+    where: { id: userId },
+    data: { unavailableIngredients: [...current, key] },
+  });
+}
+
+export async function markIngredientAvailable(key: string): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !key) return;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { unavailableIngredients: true },
+  });
+  const current = user?.unavailableIngredients ?? [];
+  await prisma.user.update({
+    where: { id: userId },
+    data: { unavailableIngredients: current.filter((k) => k !== key) },
+  });
+}
+
 // Remove the product mapping for an ingredient (by normalized key), so it shows
 // as unlinked again. Optimistic on the client; next load reads the DB.
 export async function unlinkIngredient(key: string): Promise<void> {

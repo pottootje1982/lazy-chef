@@ -26,6 +26,8 @@ model User {
   pantryKeywords String[] @default(["oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey", "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin", "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy", "baking", "yeast", "water", "mustard"])
   // Normalized ingredient keys the user has hidden from the linking page (junk lines).
   ignoredIngredients String[] @default([])
+  // Normalized ingredient keys that can't be bought at the grocer (buy elsewhere).
+  unavailableIngredients String[] @default([])
   // Auto-save an ordered ad-hoc recipe selection as a week plan, when it has at
   // least `autoWeekPlanMinRecipes` recipes.
   autoWeekPlanEnabled    Boolean @default(true)
@@ -164,6 +166,7 @@ model Order {
   selectedProductIds String[] // currently-ticked Picnic product ids
   selectedQuantities Json? // per-product quantity overrides { picnicId: qty }
   weekPlanId         String? // set when ordering from a week planning; stamps it on placement
+  unavailableItems   String[] // snapshot of not-available ingredient lines (buy elsewhere)
   placedAt           DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt

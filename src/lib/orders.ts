@@ -39,6 +39,7 @@ export type AggregatedOrder = {
   sections: OrderSection[];
   products: OrderProduct[];
   unmappedCount: number;
+  unavailable: string[]; // ingredient lines flagged not-available (buy elsewhere)
 };
 
 type CartEntry = OrderProduct & {
@@ -66,19 +67,27 @@ export async function aggregateOrder(
       orderBy: { createdAt: "desc" },
       include: { items: true },
     }),
-    prisma.user.findUnique({ where: { id: userId }, select: { pantryKeywords: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { pantryKeywords: true, unavailableIngredients: true },
+    }),
   ]);
   const pantryKeywords = user?.pantryKeywords ?? [];
+  const unavailableSet = new Set(user?.unavailableIngredients ?? []);
 
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
   const cart = new Map<string, CartEntry>();
   let unmappedCount = 0;
   const sections: OrderSection[] = [];
+  // Distinct not-available ingredient lines across the ordered recipes.
+  const unavailable = new Map<string, string>(); // key → representative raw line
 
   // Recipes → ingredients → mapped products.
   for (const recipe of recipes) {
     const rows = recipe.ingredients.map((raw): OrderRow => {
-      const m = byKey.get(normalizeIngredient(raw));
+      const key = normalizeIngredient(raw);
+      if (unavailableSet.has(key) && !unavailable.has(key)) unavailable.set(key, raw.trim());
+      const m = byKey.get(key);
       if (!m) {
         unmappedCount++;
         return { label: raw, mappedName: null, unmapped: true };
@@ -163,6 +172,7 @@ export async function aggregateOrder(
     sections,
     products,
     unmappedCount,
+    unavailable: [...unavailable.values()],
   };
 }
 

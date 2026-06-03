@@ -79,6 +79,17 @@ export default async function OrderPage({
         ) : null}
       </p>
 
+      {agg.unavailable.length ? (
+        <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-800">🛒 Not available — buy elsewhere</p>
+          <ul className="mt-1 space-y-0.5 text-sm text-amber-900">
+            {agg.unavailable.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {/* Per-source breakdown (recipes + grocery lists). */}
       <div className="mt-6 space-y-4">
         {agg.sections.map((section) => (

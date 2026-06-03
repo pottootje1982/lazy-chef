@@ -50,7 +50,7 @@ export async function placeCurrentOrder(): Promise<void> {
   });
   if (!draft) return;
 
-  const { products, recipeTitles, listTitles } = await aggregateOrder(
+  const { products, recipeTitles, listTitles, unavailable } = await aggregateOrder(
     userId,
     draft.recipeIds,
     draft.listIds,
@@ -68,6 +68,7 @@ export async function placeCurrentOrder(): Promise<void> {
       placedAt: new Date(),
       recipeTitles,
       listTitles,
+      unavailableItems: unavailable,
       items: {
         create: chosen.map((p) => ({
           picnicId: p.picnicId,
