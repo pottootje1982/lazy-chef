@@ -2,11 +2,12 @@
 
 import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
-import { signIn, signOut } from "@/lib/auth";
+import { auth, signIn, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { loginSchema, registerSchema } from "@/lib/validation";
+import { loginSchema, registerSchema, changePasswordSchema } from "@/lib/validation";
 
 export type AuthFormState = { error?: string } | undefined;
+export type PasswordFormState = { error?: string; ok?: boolean } | undefined;
 
 export async function signOutAction(): Promise<void> {
   await signOut({ redirectTo: "/login" });
@@ -72,4 +73,40 @@ export async function registerWithCredentials(
     throw error;
   }
   return undefined;
+}
+
+// Change (or, for OAuth-only accounts, set) the signed-in user's password.
+export async function changePassword(
+  _prev: PasswordFormState,
+  formData: FormData,
+): Promise<PasswordFormState> {
+  const session = await auth();
+  if (!session?.user?.id || session.user.isGuest) {
+    return { error: "You can't change the password for this account." };
+  }
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: session.user.id } });
+  if (!user) return { error: "Account not found." };
+
+  // Accounts that already have a password must confirm the current one.
+  if (user.passwordHash) {
+    const current = parsed.data.currentPassword ?? "";
+    if (!current) return { error: "Enter your current password." };
+    const valid = await bcrypt.compare(current, user.passwordHash);
+    if (!valid) return { error: "Current password is incorrect." };
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
+  await prisma.user.update({ where: { id: session.user.id }, data: { passwordHash } });
+
+  return { ok: true };
 }

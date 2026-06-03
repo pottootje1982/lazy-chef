@@ -6,6 +6,7 @@ import { paprikaDisconnect } from "@/lib/paprika-actions";
 import Link from "next/link";
 import PicnicConnect from "./PicnicConnect";
 import PaprikaConnect from "./PaprikaConnect";
+import ChangePassword from "./ChangePassword";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -14,6 +15,8 @@ export default async function SettingsPage() {
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   const linked = Boolean(user?.picnicAuthKey);
   const paprikaLinked = Boolean(user?.paprikaEmail);
+  const isGuest = Boolean(session.user.isGuest);
+  const hasPassword = Boolean(user?.passwordHash);
 
   return (
     <div className="mx-auto max-w-xl">
@@ -68,6 +71,20 @@ export default async function SettingsPage() {
           )}
         </div>
       </div>
+
+      {!isGuest ? (
+        <div className="card mt-6 p-6">
+          <h2 className="text-lg font-semibold">Password</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            {hasPassword
+              ? "Change the password you use to sign in with your email."
+              : "Set a password so you can sign in with your email address."}
+          </p>
+          <div className="mt-5">
+            <ChangePassword hasPassword={hasPassword} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

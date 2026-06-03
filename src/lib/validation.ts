@@ -29,3 +29,14 @@ export const registerSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().min(8, "Password must be at least 8 characters").max(200),
 });
+
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().optional().or(z.literal("")),
+    newPassword: z.string().min(8, "New password must be at least 8 characters").max(200),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "New passwords don't match",
+    path: ["confirmPassword"],
+  });
