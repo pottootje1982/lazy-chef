@@ -12,7 +12,7 @@ function parseIds(value: string | undefined): string[] {
 export default async function OrderPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ids?: string; lists?: string }>;
+  searchParams: Promise<{ ids?: string; lists?: string; weekPlanId?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
@@ -22,6 +22,7 @@ export default async function OrderPage({
   const sp = await searchParams;
   const recipeIds = parseIds(sp.ids);
   const listIds = parseIds(sp.lists);
+  const weekPlanId = sp.weekPlanId?.trim() || null;
   if (recipeIds.length === 0 && listIds.length === 0) redirect("/recipes");
 
   const [user, agg] = await Promise.all([
@@ -41,6 +42,10 @@ export default async function OrderPage({
     if (draft && sameSelection(draft.recipeIds, draft.listIds, recipeIds, listIds)) {
       initialSelectedIds = draft.selectedProductIds;
       initialQuantities = (draft.selectedQuantities ?? {}) as Record<string, number>;
+      // Refresh the plan link (set when ordering a plan, cleared for a normal order).
+      if (draft.weekPlanId !== weekPlanId) {
+        await prisma.order.update({ where: { id: draft.id }, data: { weekPlanId } });
+      }
     } else {
       const data = {
         recipeIds,
@@ -49,6 +54,7 @@ export default async function OrderPage({
         listTitles: agg.listTitles,
         selectedProductIds: initialSelectedIds,
         selectedQuantities: {},
+        weekPlanId,
         status: "DRAFT" as const,
       };
       if (draft) await prisma.order.update({ where: { id: draft.id }, data });

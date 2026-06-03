@@ -32,6 +32,7 @@ model User {
   mappings      ProductMapping[]
   orders        Order[]
   groceryLists  GroceryList[]
+  weekPlans     WeekPlan[]
   createdAt     DateTime  @default(now())
 }
 
@@ -129,6 +130,22 @@ enum OrderStatus {
   PLACED // sent to the Picnic cart; shows under "previous orders"
 }
 
+// A reusable, named batch of recipes. Ordered least-recently-used first so the
+// planning used longest ago (or never) surfaces on top.
+model WeekPlan {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  recipeIds     String[]
+  lastOrderedAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
 // An order groups selected recipes + chosen products. One DRAFT per user holds
 // the current selection; placing it (Add to Picnic cart) flips it to PLACED.
 model Order {
@@ -141,6 +158,7 @@ model Order {
   listTitles         String[] // snapshot of list names for display
   selectedProductIds String[] // currently-ticked Picnic product ids
   selectedQuantities Json? // per-product quantity overrides { picnicId: qty }
+  weekPlanId         String? // set when ordering from a week planning; stamps it on placement
   placedAt           DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt

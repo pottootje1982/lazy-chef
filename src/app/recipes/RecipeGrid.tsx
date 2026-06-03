@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   useSelectionSet,
   SELECTED_RECIPES_KEY,
   SELECTED_LISTS_KEY,
 } from "@/lib/use-selection";
+import { createWeekPlan } from "@/lib/week-plan-actions";
 
 export type RecipeCard = {
   id: string;
@@ -35,6 +37,10 @@ export default function RecipeGrid({
   const { ids: listSel, toggle: toggleList, clear: clearLists } =
     useSelectionSet(SELECTED_LISTS_KEY);
 
+  const [saving, setSaving] = useState(false);
+  const [planName, setPlanName] = useState("");
+  const [savingBusy, setSavingBusy] = useState(false);
+
   function clear() {
     clearRecipes();
     clearLists();
@@ -46,6 +52,28 @@ export default function RecipeGrid({
     if (listSel.size) params.set("lists", [...listSel].join(","));
     if (![...params].length) return;
     router.push(`/order?${params.toString()}`);
+  }
+
+  // Default plan name = the selected recipe titles joined.
+  function startSavePlan() {
+    const titles = recipes.filter((r) => recipeSel.has(r.id)).map((r) => r.title);
+    setPlanName(titles.join(" + ").slice(0, 200));
+    setSaving(true);
+  }
+
+  async function savePlan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!planName.trim() || savingBusy) return;
+    setSavingBusy(true);
+    try {
+      await createWeekPlan(planName.trim(), [...recipeSel]);
+      clearRecipes();
+      setSaving(false);
+      setPlanName("");
+      router.push("/week-plans");
+    } finally {
+      setSavingBusy(false);
+    }
   }
 
   const totalSelected = recipeSel.size + listSel.size;
@@ -146,24 +174,54 @@ export default function RecipeGrid({
 
       {/* Sticky order bar, shown once anything is selected. */}
       {totalSelected > 0 ? (
-        <div className="sticky bottom-4 mt-6 flex items-center justify-between gap-4 rounded-xl border border-stone-200 bg-white p-4 shadow-lg">
-          <span className="text-sm text-stone-600">
-            {[
-              recipeSel.size ? `${recipeSel.size} recipe${recipeSel.size > 1 ? "s" : ""}` : null,
-              listSel.size ? `${listSel.size} list${listSel.size > 1 ? "s" : ""}` : null,
-            ]
-              .filter(Boolean)
-              .join(" + ")}{" "}
-            selected
-          </span>
-          <div className="flex gap-2">
-            <button onClick={clear} className="btn-secondary">
-              Clear
-            </button>
-            <button onClick={order} className="btn-primary">
-              Order with Picnic →
-            </button>
-          </div>
+        <div className="sticky bottom-4 mt-6 rounded-xl border border-stone-200 bg-white p-4 shadow-lg">
+          {saving ? (
+            <form onSubmit={savePlan} className="flex flex-wrap items-center gap-2">
+              <input
+                autoFocus
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+                maxLength={200}
+                placeholder="Week plan name"
+                className="input min-w-0 flex-1 !py-1.5 text-sm"
+              />
+              <button type="submit" disabled={savingBusy} className="btn-primary flex-none">
+                {savingBusy ? "Saving…" : "Save plan"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSaving(false)}
+                className="btn-secondary flex-none"
+              >
+                Cancel
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-stone-600">
+                {[
+                  recipeSel.size ? `${recipeSel.size} recipe${recipeSel.size > 1 ? "s" : ""}` : null,
+                  listSel.size ? `${listSel.size} list${listSel.size > 1 ? "s" : ""}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" + ")}{" "}
+                selected
+              </span>
+              <div className="flex flex-wrap justify-end gap-2">
+                <button onClick={clear} className="btn-secondary">
+                  Clear
+                </button>
+                {recipeSel.size > 0 ? (
+                  <button onClick={startSavePlan} className="btn-secondary">
+                    Save as week plan
+                  </button>
+                ) : null}
+                <button onClick={order} className="btn-primary">
+                  Order with Picnic →
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : null}
     </div>

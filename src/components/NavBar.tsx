@@ -92,6 +92,7 @@ export default function NavBar({
   const accountLinks: NavLink[] = isGuest
     ? []
     : [
+        { href: "/week-plans", label: "Week plans" },
         { href: "/orders", label: "Orders" },
         { href: "/ingredients", label: "Link recipe ingredients to products" },
         { href: "/pantry", label: "Pantry staples" },

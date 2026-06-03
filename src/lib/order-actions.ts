@@ -81,5 +81,14 @@ export async function placeCurrentOrder(): Promise<void> {
     },
   });
 
+  // If this order came from a week planning, stamp when it was last ordered.
+  if (draft.weekPlanId) {
+    await prisma.weekPlan.updateMany({
+      where: { id: draft.weekPlanId, userId },
+      data: { lastOrderedAt: new Date() },
+    });
+    revalidatePath("/week-plans");
+  }
+
   revalidatePath("/settings");
 }
