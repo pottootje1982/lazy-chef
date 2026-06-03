@@ -81,13 +81,42 @@ export async function placeCurrentOrder(): Promise<void> {
     },
   });
 
-  // If this order came from a week planning, stamp when it was last ordered.
+  // Keep week plannings in sync with what was actually ordered.
+  const now = new Date();
   if (draft.weekPlanId) {
+    // Ordered from an existing planning → just stamp it.
     await prisma.weekPlan.updateMany({
       where: { id: draft.weekPlanId, userId },
-      data: { lastOrderedAt: new Date() },
+      data: { lastOrderedAt: now },
     });
     revalidatePath("/week-plans");
+  } else if (draft.recipeIds.length > 0) {
+    // Ordered an ad-hoc recipe selection. Match an existing plan with the same
+    // recipe set so re-ordering updates it instead of creating a duplicate.
+    const orderKey = [...draft.recipeIds].sort().join(",");
+    const plans = await prisma.weekPlan.findMany({
+      where: { userId },
+      select: { id: true, recipeIds: true },
+    });
+    const existing = plans.find((p) => [...p.recipeIds].sort().join(",") === orderKey);
+    if (existing) {
+      // Stamping an already-saved plan happens regardless of the auto-save setting.
+      await prisma.weekPlan.update({ where: { id: existing.id }, data: { lastOrderedAt: now } });
+      revalidatePath("/week-plans");
+    } else {
+      // Creating a new plan automatically respects the user's preference + threshold.
+      const settings = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { autoWeekPlanEnabled: true, autoWeekPlanMinRecipes: true },
+      });
+      if (settings?.autoWeekPlanEnabled && draft.recipeIds.length >= settings.autoWeekPlanMinRecipes) {
+        const name = (recipeTitles.join(" + ") || "Week plan").slice(0, 200);
+        await prisma.weekPlan.create({
+          data: { userId, name, recipeIds: draft.recipeIds, lastOrderedAt: now },
+        });
+        revalidatePath("/week-plans");
+      }
+    }
   }
 
   revalidatePath("/settings");

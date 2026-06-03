@@ -26,6 +26,10 @@ model User {
   pantryKeywords String[] @default(["oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey", "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin", "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy", "baking", "yeast", "water", "mustard"])
   // Normalized ingredient keys the user has hidden from the linking page (junk lines).
   ignoredIngredients String[] @default([])
+  // Auto-save an ordered ad-hoc recipe selection as a week plan, when it has at
+  // least `autoWeekPlanMinRecipes` recipes.
+  autoWeekPlanEnabled    Boolean @default(true)
+  autoWeekPlanMinRecipes Int     @default(3)
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]

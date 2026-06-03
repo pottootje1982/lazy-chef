@@ -44,3 +44,18 @@ export async function deleteWeekPlan(id: string): Promise<void> {
   await prisma.weekPlan.deleteMany({ where: { id, userId } });
   revalidatePath("/week-plans");
 }
+
+// Configure auto-saving an ordered recipe selection as a week plan.
+export async function setAutoWeekPlanSettings(
+  enabled: boolean,
+  minRecipes: number,
+): Promise<void> {
+  const userId = await writerId();
+  if (!userId) return;
+  const min = Math.max(1, Math.min(50, Math.floor(Number(minRecipes) || 3)));
+  await prisma.user.update({
+    where: { id: userId },
+    data: { autoWeekPlanEnabled: Boolean(enabled), autoWeekPlanMinRecipes: min },
+  });
+  revalidatePath("/settings");
+}

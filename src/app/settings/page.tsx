@@ -7,6 +7,7 @@ import Link from "next/link";
 import PicnicConnect from "./PicnicConnect";
 import PaprikaConnect from "./PaprikaConnect";
 import ChangePassword from "./ChangePassword";
+import WeekPlanSettings from "./WeekPlanSettings";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -71,6 +72,22 @@ export default async function SettingsPage() {
           )}
         </div>
       </div>
+
+      {!isGuest ? (
+        <div className="card mt-6 p-6">
+          <h2 className="text-lg font-semibold">Week plans</h2>
+          <p className="mt-1 text-sm text-stone-500">
+            When you order an ad-hoc recipe selection, it can be saved as a week plan
+            automatically (no prompt).
+          </p>
+          <div className="mt-5">
+            <WeekPlanSettings
+              enabled={user?.autoWeekPlanEnabled ?? true}
+              minRecipes={user?.autoWeekPlanMinRecipes ?? 3}
+            />
+          </div>
+        </div>
+      ) : null}
 
       {!isGuest ? (
         <div className="card mt-6 p-6">
