@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   renameList,
   deleteList,
@@ -65,17 +65,47 @@ export default function GroceryListEditor({
   const [name, setName] = useState(list.name);
   const itemIds = new Set(list.items.map((i) => i.picnicId));
 
+  // Collapsed by default; "0" in localStorage means the user expanded this list.
+  const collapseKey = `rm.groceryCollapsed.${list.id}`;
+  const [collapsed, setCollapsed] = useState(true);
+  useEffect(() => {
+    if (localStorage.getItem(collapseKey) === "0") setCollapsed(false);
+  }, [collapseKey]);
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      const next = !c;
+      localStorage.setItem(collapseKey, next ? "1" : "0");
+      return next;
+    });
+  }
+
   return (
     <section className="card p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <button
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? "Expand list" : "Collapse list"}
+            aria-expanded={!collapsed}
+            className="flex-none text-stone-400 hover:text-stone-700"
+          >
+            <svg
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              className={`transition-transform ${collapsed ? "" : "rotate-90"}`}
+            >
+              <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
           <span>🛒</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             onBlur={() => name.trim() && name !== list.name && renameList(list.id, name)}
-            className="rounded border border-transparent px-1 text-base font-semibold hover:border-stone-200 focus:border-brand-500 focus:outline-none"
+            className="min-w-0 rounded border border-transparent px-1 text-base font-semibold hover:border-stone-200 focus:border-brand-500 focus:outline-none"
           />
+          <span className="flex-none text-xs text-stone-400">
+            {list.items.length} product{list.items.length === 1 ? "" : "s"}
+          </span>
         </div>
         <button
           onClick={() => deleteList(list.id)}
@@ -85,6 +115,8 @@ export default function GroceryListEditor({
         </button>
       </div>
 
+      {collapsed ? null : (
+        <>
       {/* Add products via Picnic search */}
       {picnicLinked ? (
         <PicnicProductSearch
@@ -139,6 +171,8 @@ export default function GroceryListEditor({
           ))
         )}
       </ul>
+        </>
+      )}
     </section>
   );
 }
