@@ -110,14 +110,6 @@ export default async function RecipesPage({
         ))}
       </div>
 
-      {!session.user.isGuest ? (
-        <p className="mb-4">
-          <Link href="/ingredients" className="text-sm text-brand-600 hover:underline">
-            Link ingredients to Picnic →
-          </Link>
-        </p>
-      ) : null}
-
       {showOnboarding ? (
         <div className="card p-10 text-center text-stone-500">
           <p className="mb-4">You don&apos;t have any recipes yet.</p>
