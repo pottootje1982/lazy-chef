@@ -9,7 +9,7 @@ import {
   markIngredientUnavailable,
   markIngredientAvailable,
 } from "@/lib/ingredient-actions";
-import ProductHoverCard from "@/components/ProductHoverCard";
+import PicnicProductSearch, { type SearchProduct } from "@/components/PicnicProductSearch";
 
 export type UnlinkedItem = {
   key: string;
@@ -45,15 +45,6 @@ export type LinkedItem = {
   product: LinkedProduct;
 };
 
-type SearchProduct = {
-  picnicId: string;
-  name: string;
-  imageId: string | null;
-  priceCents: number | null;
-  unitQuantity: string | null;
-  imageUrl: string | null;
-};
-
 type View = "all" | "unlinked" | "linked" | "ignored" | "unavailable";
 const VIEW_KEY = "rm.ingredientFilter";
 
@@ -78,156 +69,6 @@ function RecipeLinks({ recipes }: { recipes: { id: string; title: string }[] }) 
       ))}
       {recipes.length > 5 ? ` +${recipes.length - 5} more` : ""}
     </span>
-  );
-}
-
-// Shared search box + word chips + result list with a "Link" button. Used by
-// both the unlinked Row and the linked row's "Change" mode.
-function ProductSearch({
-  rawIngredient,
-  words,
-  initialQuery,
-  onLinked,
-}: {
-  rawIngredient: string;
-  words: string[];
-  initialQuery: string;
-  onLinked: (p: SearchProduct) => void;
-}) {
-  const [query, setQuery] = useState(initialQuery);
-  const [results, setResults] = useState<SearchProduct[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [visible, setVisible] = useState(8);
-
-  async function search(body: { ingredient: string; query?: string }) {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/picnic/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error === "picnic_not_linked" ? "Connect Picnic first." : (data.error ?? "Search failed."));
-        return;
-      }
-      if (typeof data.translated === "string") setQuery(data.translated);
-      setResults(data.products ?? []);
-      setVisible(8);
-      setSearched(true);
-    } catch {
-      setError("Something went wrong searching Picnic.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function searchWord(word: string) {
-    setQuery(word);
-    void search({ ingredient: rawIngredient, query: word });
-  }
-  function manualSearch(e: React.FormEvent) {
-    e.preventDefault();
-    if (query.trim()) void search({ ingredient: rawIngredient, query: query.trim() });
-  }
-
-  async function link(p: SearchProduct) {
-    setBusyId(p.picnicId);
-    setError(null);
-    try {
-      const res = await fetch("/api/mappings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawIngredient, translated: query || rawIngredient, product: p }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Could not link.");
-        return;
-      }
-      onLinked(p);
-    } catch {
-      setError("Could not link.");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  return (
-    <div className="mt-2">
-      <div className="flex flex-wrap items-center gap-2">
-        {words.map((w) => (
-          <button
-            key={w}
-            onClick={() => searchWord(w)}
-            className="rounded-full bg-stone-100 px-2.5 py-1 text-xs text-stone-700 hover:bg-brand-100 hover:text-brand-700"
-          >
-            {w}
-          </button>
-        ))}
-        <form onSubmit={manualSearch} className="flex flex-1 gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="search term…"
-            className="input !py-1 text-sm"
-          />
-          <button type="submit" disabled={loading} className="btn-secondary flex-none !py-1">
-            {loading ? "…" : "Search"}
-          </button>
-        </form>
-      </div>
-
-      {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
-      {!loading && !error && searched && results.length === 0 ? (
-        <p className="mt-2 text-sm text-stone-400">No products found — try another word.</p>
-      ) : null}
-
-      {results.length > 0 ? (
-        <div className="mt-2 space-y-2">
-          {results.slice(0, visible).map((p, i) => (
-            <ProductHoverCard
-              key={`${p.picnicId}-${i}`}
-              product={p}
-              className="flex items-center gap-3 rounded border border-stone-100 p-2"
-            >
-              {p.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={p.imageUrl} alt={p.name} className="h-10 w-10 flex-none rounded object-cover" />
-              ) : (
-                <div className="h-10 w-10 flex-none rounded bg-stone-100" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm">{p.name}</p>
-                <p className="text-xs text-stone-500">
-                  {[p.unitQuantity, euro(p.priceCents)].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-              <button
-                onClick={() => link(p)}
-                disabled={busyId === p.picnicId}
-                className="btn-primary flex-none !py-1 !px-3 text-xs"
-              >
-                {busyId === p.picnicId ? "…" : "Link"}
-              </button>
-            </ProductHoverCard>
-          ))}
-          {results.length > visible ? (
-            <button
-              onClick={() => setVisible((v) => v + 8)}
-              className="w-full rounded border border-stone-200 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
-            >
-              Load more ({results.length - visible})
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
   );
 }
 
@@ -278,13 +119,21 @@ function LinkedRow({
         </div>
       </div>
       {editing ? (
-        <ProductSearch
-          rawIngredient={item.raw}
-          words={[]}
+        <PicnicProductSearch
+          ingredient={item.raw}
           initialQuery={item.product.name}
-          onLinked={(p) => {
-            onChanged(p);
-            setEditing(false);
+          action={{
+            label: "Link",
+            onPick: async (p, query) => {
+              const res = await fetch("/api/mappings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rawIngredient: item.raw, translated: query || item.raw, product: p }),
+              });
+              if (!res.ok) return (await res.json()).error ?? "Could not link.";
+              onChanged(p);
+              setEditing(false);
+            },
           }}
         />
       ) : null}
@@ -371,11 +220,22 @@ function Row({
         </button>
       </div>
 
-      <ProductSearch
-        rawIngredient={item.raw}
+      <PicnicProductSearch
+        ingredient={item.raw}
         words={item.words}
         initialQuery={item.prefill || item.words.join(" ")}
-        onLinked={onLinked}
+        action={{
+          label: "Link",
+          onPick: async (p, query) => {
+            const res = await fetch("/api/mappings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ rawIngredient: item.raw, translated: query || item.raw, product: p }),
+            });
+            if (!res.ok) return (await res.json()).error ?? "Could not link.";
+            onLinked(p);
+          },
+        }}
       />
     </li>
   );
