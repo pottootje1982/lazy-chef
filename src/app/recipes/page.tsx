@@ -143,6 +143,8 @@ export default async function RecipesPage({
               description: r.description,
               imageUrl: r.imageUrl,
               tags: r.tags,
+              createdAt: r.createdAt.toISOString(),
+              lastOrderedAt: r.lastOrderedAt?.toISOString() ?? null,
             }))}
             lists={listCards}
           />

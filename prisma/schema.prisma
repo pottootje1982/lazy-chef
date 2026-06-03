@@ -91,6 +91,7 @@ model Recipe {
   tags         String[]
   categories   String[] @default([]) // derived: vegetarian, vegan, fish, meat, dessert
   paprikaUid   String? // source Paprika recipe uid (for dedup on re-sync)
+  lastOrderedAt DateTime? // last time this recipe was ordered (added to Picnic cart)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

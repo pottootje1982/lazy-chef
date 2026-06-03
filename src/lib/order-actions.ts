@@ -81,8 +81,18 @@ export async function placeCurrentOrder(): Promise<void> {
     },
   });
 
-  // Keep week plannings in sync with what was actually ordered.
   const now = new Date();
+
+  // Stamp each ordered recipe so "My Recipes" can sort by last-ordered date.
+  if (draft.recipeIds.length > 0) {
+    await prisma.recipe.updateMany({
+      where: { id: { in: draft.recipeIds }, userId },
+      data: { lastOrderedAt: now },
+    });
+    revalidatePath("/recipes");
+  }
+
+  // Keep week plannings in sync with what was actually ordered.
   if (draft.weekPlanId) {
     // Ordered from an existing planning → just stamp it.
     await prisma.weekPlan.updateMany({

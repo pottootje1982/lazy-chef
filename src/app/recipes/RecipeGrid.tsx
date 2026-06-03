@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useSelectionSet,
   SELECTED_RECIPES_KEY,
@@ -16,6 +16,8 @@ export type RecipeCard = {
   description: string | null;
   imageUrl: string | null;
   tags: string[];
+  createdAt: string; // ISO
+  lastOrderedAt: string | null; // ISO or null
 };
 
 export type GroceryListCard = {
@@ -23,6 +25,21 @@ export type GroceryListCard = {
   name: string;
   itemCount: number;
 };
+
+type View = "grid" | "list";
+type SortKey = "created" | "ordered";
+type Sort = { key: SortKey; dir: "asc" | "desc" };
+
+const VIEW_KEY = "rm.recipeView";
+const SORT_KEY = "rm.recipeSort";
+
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function RecipeGrid({
   recipes,
@@ -40,6 +57,36 @@ export default function RecipeGrid({
   const [saving, setSaving] = useState(false);
   const [planName, setPlanName] = useState("");
   const [savingBusy, setSavingBusy] = useState(false);
+
+  const [view, setView] = useState<View>("grid");
+  const [sort, setSort] = useState<Sort>({ key: "created", dir: "desc" });
+
+  // Load persisted view + sort preferences.
+  useEffect(() => {
+    const v = localStorage.getItem(VIEW_KEY);
+    if (v === "grid" || v === "list") setView(v);
+    try {
+      const s = JSON.parse(localStorage.getItem(SORT_KEY) ?? "");
+      if ((s?.key === "created" || s?.key === "ordered") && (s?.dir === "asc" || s?.dir === "desc")) {
+        setSort(s);
+      }
+    } catch {
+      /* no stored sort */
+    }
+  }, []);
+
+  function changeView(v: View) {
+    setView(v);
+    localStorage.setItem(VIEW_KEY, v);
+  }
+  function toggleSort(key: SortKey) {
+    setSort((prev) => {
+      const next: Sort =
+        prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "desc" };
+      localStorage.setItem(SORT_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
   function clear() {
     clearRecipes();
@@ -76,7 +123,23 @@ export default function RecipeGrid({
     }
   }
 
+  // List view is client-sorted; grid keeps the server order (newest first).
+  const sortedForList = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...recipes].sort((a, b) => {
+      if (sort.key === "created") {
+        return a.createdAt < b.createdAt ? -dir : a.createdAt > b.createdAt ? dir : 0;
+      }
+      // "ordered": never-ordered (null) always sort last.
+      if (a.lastOrderedAt === b.lastOrderedAt) return 0;
+      if (a.lastOrderedAt === null) return 1;
+      if (b.lastOrderedAt === null) return -1;
+      return a.lastOrderedAt < b.lastOrderedAt ? -dir : dir;
+    });
+  }, [recipes, sort]);
+
   const totalSelected = recipeSel.size + listSel.size;
+  const arrow = (key: SortKey) => (sort.key === key ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
 
   return (
     <div>
@@ -117,60 +180,130 @@ export default function RecipeGrid({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {recipes.map((recipe) => {
-          const isSelected = recipeSel.has(recipe.id);
-          return (
-            <div
-              key={recipe.id}
-              className={`card relative overflow-hidden transition hover:shadow-md ${
-                isSelected ? "ring-2 ring-brand-500" : ""
-              }`}
+      {/* View toggle */}
+      {recipes.length > 0 ? (
+        <div className="mb-4 flex justify-end">
+          <div className="inline-flex overflow-hidden rounded-lg border border-stone-200 text-sm">
+            <button
+              onClick={() => changeView("grid")}
+              className={`px-3 py-1 ${view === "grid" ? "bg-brand-600 text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
             >
-              <label
-                className="absolute left-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white/90 shadow-sm"
-                title="Select for ordering"
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={() => toggleRecipe(recipe.id)}
-                  className="h-4 w-4 accent-brand-600"
-                />
-              </label>
+              Grid
+            </button>
+            <button
+              onClick={() => changeView("list")}
+              className={`border-l border-stone-200 px-3 py-1 ${view === "list" ? "bg-brand-600 text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
+            >
+              List
+            </button>
+          </div>
+        </div>
+      ) : null}
 
-              <Link href={`/recipes/${recipe.id}`} className="block">
-                {recipe.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={recipe.imageUrl} alt={recipe.title} className="h-40 w-full object-cover" />
-                ) : (
-                  <div className="flex h-40 w-full items-center justify-center bg-stone-100 text-4xl">
-                    🍽️
-                  </div>
-                )}
-                <div className="p-4">
-                  <h2 className="font-semibold leading-tight">{recipe.title}</h2>
-                  {recipe.description ? (
-                    <p className="mt-1 line-clamp-2 text-sm text-stone-500">{recipe.description}</p>
-                  ) : null}
-                  {recipe.tags.length ? (
-                    <div className="mt-3 flex flex-wrap gap-1">
-                      {recipe.tags.slice(0, 3).map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
-                        >
-                          {tag}
-                        </span>
-                      ))}
+      {view === "list" ? (
+        <div>
+          {/* Sortable header */}
+          <div className="flex items-center gap-3 border-b border-stone-200 px-2 pb-2 text-xs font-medium text-stone-400">
+            <span className="h-4 w-4 flex-none" />
+            <span className="min-w-0 flex-1">Recipe</span>
+            <button
+              onClick={() => toggleSort("created")}
+              className="w-24 flex-none text-right hover:text-stone-700"
+            >
+              Created{arrow("created")}
+            </button>
+            <button
+              onClick={() => toggleSort("ordered")}
+              className="w-28 flex-none text-right hover:text-stone-700"
+            >
+              Last ordered{arrow("ordered")}
+            </button>
+          </div>
+          <ul className="divide-y divide-stone-100">
+            {sortedForList.map((recipe) => {
+              const isSelected = recipeSel.has(recipe.id);
+              return (
+                <li
+                  key={recipe.id}
+                  className={`flex items-center gap-3 px-2 py-2 ${isSelected ? "bg-brand-50" : "hover:bg-stone-50"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleRecipe(recipe.id)}
+                    className="h-4 w-4 flex-none accent-brand-600"
+                    title="Select for ordering"
+                  />
+                  <Link href={`/recipes/${recipe.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:text-brand-600">
+                    {recipe.title}
+                  </Link>
+                  <span className="w-24 flex-none text-right text-xs text-stone-500">
+                    {fmtDate(recipe.createdAt)}
+                  </span>
+                  <span className="w-28 flex-none text-right text-xs text-stone-500">
+                    {recipe.lastOrderedAt ? fmtDate(recipe.lastOrderedAt) : "Never"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {recipes.map((recipe) => {
+            const isSelected = recipeSel.has(recipe.id);
+            return (
+              <div
+                key={recipe.id}
+                className={`card relative overflow-hidden transition hover:shadow-md ${
+                  isSelected ? "ring-2 ring-brand-500" : ""
+                }`}
+              >
+                <label
+                  className="absolute left-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white/90 shadow-sm"
+                  title="Select for ordering"
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleRecipe(recipe.id)}
+                    className="h-4 w-4 accent-brand-600"
+                  />
+                </label>
+
+                <Link href={`/recipes/${recipe.id}`} className="block">
+                  {recipe.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={recipe.imageUrl} alt={recipe.title} className="h-40 w-full object-cover" />
+                  ) : (
+                    <div className="flex h-40 w-full items-center justify-center bg-stone-100 text-4xl">
+                      🍽️
                     </div>
-                  ) : null}
-                </div>
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+                  )}
+                  <div className="p-4">
+                    <h2 className="font-semibold leading-tight">{recipe.title}</h2>
+                    {recipe.description ? (
+                      <p className="mt-1 line-clamp-2 text-sm text-stone-500">{recipe.description}</p>
+                    ) : null}
+                    {recipe.tags.length ? (
+                      <div className="mt-3 flex flex-wrap gap-1">
+                        {recipe.tags.slice(0, 3).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Sticky order bar, shown once anything is selected. */}
       {totalSelected > 0 ? (
