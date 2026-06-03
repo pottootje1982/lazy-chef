@@ -6,17 +6,23 @@ import { picnicUnlink } from "@/lib/picnic-actions";
 import { paprikaDisconnect } from "@/lib/paprika-actions";
 import PicnicConnect from "./PicnicConnect";
 import PaprikaConnect from "./PaprikaConnect";
+import PantrySettings from "./PantrySettings";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const [user, orders] = await Promise.all([
+  const [user, orders, mappings] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id } }),
     prisma.order.findMany({
       where: { userId: session.user.id, status: "PLACED" },
       orderBy: { placedAt: "desc" },
       include: { items: true },
+    }),
+    prisma.productMapping.findMany({
+      where: { userId: session.user.id },
+      select: { picnicId: true, ingredientKey: true, productName: true, isStaple: true },
+      orderBy: { productName: "asc" },
     }),
   ]);
   const linked = Boolean(user?.picnicAuthKey);
@@ -83,6 +89,28 @@ export default async function SettingsPage() {
             </div>
           ) : (
             <PaprikaConnect />
+          )}
+        </div>
+      </div>
+
+      <div className="card mt-6 p-6">
+        <h2 className="text-lg font-semibold">Pantry staples</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Things you usually already have — these are unticked by default when ordering,
+          so you only add what a recipe actually needs.
+        </p>
+        <div className="mt-5">
+          {isGuest ? (
+            <div className="flex flex-wrap gap-2">
+              {(user?.pantryKeywords ?? []).map((w) => (
+                <span key={w} className="rounded-full bg-stone-100 px-3 py-1 text-sm text-stone-600">
+                  {w}
+                </span>
+              ))}
+              <span className="text-sm text-stone-400">(read-only)</span>
+            </div>
+          ) : (
+            <PantrySettings keywords={user?.pantryKeywords ?? []} mappings={mappings} />
           )}
         </div>
       </div>

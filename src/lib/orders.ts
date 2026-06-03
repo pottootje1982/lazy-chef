@@ -2,17 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { normalizeIngredient, parseCount } from "@/lib/translate";
 import { productImageUrl } from "@/lib/picnic";
 
-// Pantry staples that usually come in big packs and are likely already owned
-// (e.g. olive oil, garlic). Matched against the English-normalized ingredient
-// key. Deselected by default — overridable.
-const STAPLE_KEYWORDS = [
-  "oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey",
-  "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin",
-  "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy",
-  "baking", "yeast", "water", "mustard",
-];
-export function isStapleKey(key: string): boolean {
-  return STAPLE_KEYWORDS.some((s) => key.includes(s));
+// A linked ingredient is a pantry staple when its normalized key contains one
+// of the user's pantry keywords. The keyword list is user-managed (Settings).
+function matchesPantryKeywords(key: string, keywords: string[]): boolean {
+  return keywords.some((s) => s && key.includes(s));
 }
 
 export type OrderProduct = {
@@ -48,7 +41,11 @@ export type AggregatedOrder = {
   unmappedCount: number;
 };
 
-type CartEntry = OrderProduct & { ingredientKey: string; fromGrocery: boolean };
+type CartEntry = OrderProduct & {
+  ingredientKey: string;
+  fromGrocery: boolean;
+  stapleOverride: boolean | null; // per-mapping pantry override (null = use keywords)
+};
 
 // Resolve the selected recipes + grocery lists into per-source breakdown
 // sections and a deduped list of products (summing duplicates). Shared by the
@@ -58,7 +55,7 @@ export async function aggregateOrder(
   recipeIds: string[],
   listIds: string[] = [],
 ): Promise<AggregatedOrder> {
-  const [recipes, mappings, lists] = await Promise.all([
+  const [recipes, mappings, lists, user] = await Promise.all([
     prisma.recipe.findMany({
       where: { id: { in: recipeIds }, userId },
       orderBy: { createdAt: "desc" },
@@ -69,7 +66,9 @@ export async function aggregateOrder(
       orderBy: { createdAt: "desc" },
       include: { items: true },
     }),
+    prisma.user.findUnique({ where: { id: userId }, select: { pantryKeywords: true } }),
   ]);
+  const pantryKeywords = user?.pantryKeywords ?? [];
 
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
   const cart = new Map<string, CartEntry>();
@@ -103,6 +102,7 @@ export async function aggregateOrder(
           isStaple: false,
           defaultSelected: false,
           fromGrocery: false,
+          stapleOverride: m.isStaple,
         });
       }
       return { label: raw, mappedName: m.productName, unmapped: false };
@@ -131,6 +131,7 @@ export async function aggregateOrder(
           isStaple: false,
           defaultSelected: false,
           fromGrocery: true,
+          stapleOverride: null,
         });
       }
       return { label: it.productName, mappedName: null, unmapped: false };
@@ -139,7 +140,7 @@ export async function aggregateOrder(
   }
 
   const products: OrderProduct[] = [...cart.values()].map((it) => {
-    const isStaple = isStapleKey(it.ingredientKey);
+    const isStaple = it.stapleOverride ?? matchesPantryKeywords(it.ingredientKey, pantryKeywords);
     return {
       picnicId: it.picnicId,
       name: it.name,

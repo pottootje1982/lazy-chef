@@ -21,6 +21,9 @@ model User {
   picnicPendingKey String? // AES-GCM encrypted interim auth key during 2FA login; null otherwise
   paprikaEmail    String? // Paprika sync account email
   paprikaPassword String? // AES-GCM encrypted Paprika password (Basic-auth per call)
+  // Pantry staple keywords: linked ingredients whose normalized key contains one
+  // of these are unticked by default when ordering. Seeded with sensible defaults.
+  pantryKeywords String[] @default(["oil", "garlic", "salt", "sugar", "flour", "butter", "vinegar", "honey", "stock", "broth", "bouillon", "oregano", "thyme", "rosemary", "cumin", "paprika", "cinnamon", "nutmeg", "basil", "parsley", "coriander", "soy", "baking", "yeast", "water", "mustard"])
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]
@@ -103,6 +106,7 @@ model ProductMapping {
   imageId       String?
   priceCents    Int?
   unitQuantity  String?
+  isStaple      Boolean? // pantry override: null = follow keywords, true/false = force
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
