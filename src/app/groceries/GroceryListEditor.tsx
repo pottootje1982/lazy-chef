@@ -142,43 +142,9 @@ export default function GroceryListEditor({
         </button>
       </div>
 
-      {/* Items */}
-      <ul className="mt-3 space-y-2">
-        {list.items.length === 0 ? (
-          <li className="text-sm text-stone-400">No products yet — search below to add some.</li>
-        ) : (
-          list.items.map((it) => (
-            <li key={it.id} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2">
-              {it.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.imageUrl} alt={it.productName} className="h-9 w-9 flex-none rounded object-cover" />
-              ) : (
-                <div className="flex h-9 w-9 flex-none items-center justify-center rounded bg-stone-200 text-sm">
-                  🛒
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{it.productName}</p>
-                <p className="text-xs text-stone-500">
-                  {[it.unitQuantity, euro(it.priceCents)].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-              <QtyStepper id={it.id} initial={it.quantity} />
-              <button
-                onClick={() => removeGroceryItem(it.id)}
-                className="flex-none px-2 text-stone-400 hover:text-red-600"
-                aria-label="Remove product"
-              >
-                ✕
-              </button>
-            </li>
-          ))
-        )}
-      </ul>
-
       {/* Add products via Picnic search */}
       {picnicLinked ? (
-        <div className="mt-4 border-t border-stone-100 pt-4">
+        <div className="mt-4">
           <form onSubmit={search} className="flex gap-2">
             <input
               value={query}
@@ -228,6 +194,40 @@ export default function GroceryListEditor({
           ) : null}
         </div>
       ) : null}
+
+      {/* Items */}
+      <ul className="mt-4 space-y-2 border-t border-stone-100 pt-4">
+        {list.items.length === 0 ? (
+          <li className="text-sm text-stone-400">No products yet — search above to add some.</li>
+        ) : (
+          list.items.map((it) => (
+            <li key={it.id} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2">
+              {it.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={it.imageUrl} alt={it.productName} className="h-9 w-9 flex-none rounded object-cover" />
+              ) : (
+                <div className="flex h-9 w-9 flex-none items-center justify-center rounded bg-stone-200 text-sm">
+                  🛒
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{it.productName}</p>
+                <p className="text-xs text-stone-500">
+                  {[it.unitQuantity, euro(it.priceCents)].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+              <QtyStepper id={it.id} initial={it.quantity} />
+              <button
+                onClick={() => removeGroceryItem(it.id)}
+                className="flex-none px-2 text-stone-400 hover:text-red-600"
+                aria-label="Remove product"
+              >
+                ✕
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
     </section>
   );
 }
