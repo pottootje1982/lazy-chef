@@ -27,6 +27,39 @@ const STOPWORDS = new Set([
   "to", "for", "of", "a", "an", "the", "and", "or", "plus", "extra", "more", "very",
   "taste", "garnish", "serve", "serving", "drizzling", "dusting", "greasing",
   "room", "temperature", "about", "approx", "optional", "x", "into", "in",
+  // extra English qualifiers (hyphenated descriptors stay one token after normalize)
+  "low-salt", "low-sodium", "reduced-salt", "reduced-sodium", "no-added-sugar",
+  "fat-free", "sugar-free", "full-fat", "semi-skimmed", "skimmed", "unsalted",
+  "salted", "granulated", "caster", "artisan", "artisanal", "quality", "value",
+  "tub", "tubs", "carton", "cartons", "bottle", "bottles", "block",
+
+  // ── Dutch ──────────────────────────────────────────────────────────────
+  // units & measures
+  "el", "tl", "dl", "cl", "eetlepel", "eetlepels", "theelepel", "theelepels",
+  "gram", "grammen", "kilo", "kilogram", "ons", "mespunt", "mespunten", "snuf",
+  "snufje", "scheut", "scheutje", "scheutjes", "klont", "klontje", "klontjes",
+  "takje", "takjes", "teen", "teentje", "teentjes", "tenen", "stengel", "stengels",
+  "blik", "blikje", "blikken", "pot", "potje", "zak", "zakje", "bos", "bosje",
+  "krop", "struik", "plak", "plakje", "plakjes", "stuk", "stuks", "stukje",
+  "stukjes", "bol", "bolletje", "reep", "repen", "bakje", "doosje", "fles",
+  "flesje", "pak", "pakje", "snee", "sneetje", "sneetjes", "kop", "kopje",
+  "glas", "schijf", "schijfje", "schijfjes", "handvol",
+  // prep / quality qualifiers (participles & adjectives)
+  "gemalen", "geraspt", "geraspte", "gesneden", "fijngesneden", "fijngehakt",
+  "fijngehakte", "grofgesneden", "gehakte", "gedroogd", "gedroogde", "gerookt",
+  "gerookte", "gekookt", "gekookte", "gebakken", "gestoofd", "geroosterd",
+  "geroosterde", "gepofte", "geschild", "geschilde", "gepeld", "gepelde",
+  "ontveld", "ontvelde", "panklaar", "panklare", "vers", "verse", "rauw", "rauwe",
+  "rijp", "rijpe", "grof", "grove", "fijn", "fijne", "groot", "grote", "klein",
+  "kleine", "jong", "jonge", "oud", "oude", "hele", "heel", "halve", "kwart",
+  "gemengd", "gemengde", "biologisch", "biologische", "ambachtelijk",
+  "ambachtelijke", "ongezouten", "gezouten", "gekruid", "gekruide", "ongebrand",
+  "ongebrande", "naturel", "mager", "magere", "vol", "volle", "diepvries",
+  "ingevroren", "optioneel", "optionele", "platte", "gladde",
+  // filler / glue
+  "van", "met", "voor", "naar", "smaak", "eventueel", "ongeveer", "circa", "ca",
+  "of", "en", "het", "de", "een", "per", "à", "bij", "ter", "tot", "uit",
+  "zonder", "wat", "beetje",
 ]);
 
 // Reduce e.g. "2 large garlic cloves, finely chopped" -> "garlic".

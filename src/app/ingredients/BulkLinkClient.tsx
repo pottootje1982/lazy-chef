@@ -1,11 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export type UnlinkedItem = {
   key: string;
   raw: string;
   count: number;
+  recipes: { id: string; title: string }[]; // recipes that use this ingredient
   words: string[]; // Dutch chip words
   prefill: string; // Dutch search term to prefill
 };
@@ -105,7 +107,19 @@ function Row({ item, onLinked }: { item: UnlinkedItem; onLinked: () => void }) {
       <div className="flex flex-wrap items-baseline gap-2">
         <span className="text-sm font-medium">{item.raw}</span>
         <span className="text-xs text-stone-400">
-          in {item.count} recipe{item.count === 1 ? "" : "s"}
+          in{" "}
+          {item.recipes.slice(0, 5).map((r, i) => (
+            <span key={r.id}>
+              {i > 0 ? ", " : ""}
+              <Link
+                href={`/recipes/${r.id}`}
+                className="text-stone-500 hover:text-brand-600 hover:underline"
+              >
+                {r.title}
+              </Link>
+            </span>
+          ))}
+          {item.recipes.length > 5 ? ` +${item.recipes.length - 5} more` : ""}
         </span>
       </div>
 

@@ -70,7 +70,10 @@ export default async function IngredientsPage() {
 
   const [user, recipes, mappings] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
-    prisma.recipe.findMany({ where: { userId: session.user.id }, select: { ingredients: true } }),
+    prisma.recipe.findMany({
+      where: { userId: session.user.id },
+      select: { id: true, title: true, ingredients: true },
+    }),
     prisma.productMapping.findMany({
       where: { userId: session.user.id },
       select: { ingredientKey: true },
@@ -79,15 +82,15 @@ export default async function IngredientsPage() {
   const picnicLinked = Boolean(user?.picnicAuthKey);
   const mapped = new Set(mappings.map((m) => m.ingredientKey));
 
-  // Build the deduped unlinked set with occurrence counts.
-  const byKey = new Map<string, { raw: string; count: number }>();
+  // Build the deduped unlinked set, tracking which recipes use each ingredient.
+  const byKey = new Map<string, { raw: string; recipes: Map<string, string> }>();
   for (const r of recipes) {
     for (const raw of r.ingredients) {
       const key = normalizeIngredient(raw);
       if (key.length < 2 || mapped.has(key)) continue;
       const cur = byKey.get(key);
-      if (cur) cur.count += 1;
-      else byKey.set(key, { raw: raw.trim(), count: 1 });
+      if (cur) cur.recipes.set(r.id, r.title);
+      else byKey.set(key, { raw: raw.trim(), recipes: new Map([[r.id, r.title]]) });
     }
   }
   // Translate each ingredient's cleaned English core to Dutch (batched + cached).
@@ -99,7 +102,15 @@ export default async function IngredientsPage() {
     .map(([key, v]) => {
       const phrase = phraseByKey.get(key) ?? "";
       const dutch = (phrase && dutchMap.get(phrase.toLowerCase())) || phrase;
-      return { key, raw: v.raw, count: v.count, words: dutchChips(dutch), prefill: dutch };
+      const recipes = [...v.recipes].map(([id, title]) => ({ id, title }));
+      return {
+        key,
+        raw: v.raw,
+        count: recipes.length,
+        recipes,
+        words: dutchChips(dutch),
+        prefill: dutch,
+      };
     })
     .sort((a, b) => b.count - a.count || a.raw.localeCompare(b.raw));
 
