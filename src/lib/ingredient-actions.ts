@@ -27,6 +27,14 @@ export async function ignoreIngredient(key: string): Promise<void> {
   });
 }
 
+// Remove the product mapping for an ingredient (by normalized key), so it shows
+// as unlinked again. Optimistic on the client; next load reads the DB.
+export async function unlinkIngredient(key: string): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !key) return;
+  await prisma.productMapping.deleteMany({ where: { userId, ingredientKey: key } });
+}
+
 export async function unignoreIngredient(key: string): Promise<void> {
   const userId = await writerId();
   if (!userId || !key) return;

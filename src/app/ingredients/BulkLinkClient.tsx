@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ignoreIngredient, unignoreIngredient } from "@/lib/ingredient-actions";
+import {
+  ignoreIngredient,
+  unignoreIngredient,
+  unlinkIngredient,
+} from "@/lib/ingredient-actions";
 
 export type UnlinkedItem = {
   key: string;
@@ -71,64 +75,20 @@ function RecipeLinks({ recipes }: { recipes: { id: string; title: string }[] }) 
   );
 }
 
-function LinkedRow({ item }: { item: LinkedItem }) {
-  return (
-    <li className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50/60 p-3">
-      {item.product.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={item.product.imageUrl} alt={item.product.name} className="h-10 w-10 flex-none rounded object-cover" />
-      ) : (
-        <div className="flex h-10 w-10 flex-none items-center justify-center rounded bg-stone-100">🛒</div>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-sm font-medium">{item.raw}</span>
-          <RecipeLinks recipes={item.recipes} />
-        </div>
-        <p className="truncate text-xs text-green-800">
-          <span className="text-green-600">✓</span> {item.product.name}
-          {[item.product.unitQuantity, euro(item.product.priceCents)].filter(Boolean).length ? (
-            <span className="text-stone-500">
-              {" · "}
-              {[item.product.unitQuantity, euro(item.product.priceCents)].filter(Boolean).join(" · ")}
-            </span>
-          ) : null}
-        </p>
-      </div>
-    </li>
-  );
-}
-
-function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () => void }) {
-  return (
-    <li className="flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-2">
-          <span className="text-sm text-stone-500 line-through">{item.raw}</span>
-          <RecipeLinks recipes={item.recipes} />
-        </div>
-      </div>
-      <button
-        onClick={onUnignore}
-        className="flex-none rounded-full bg-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-300"
-      >
-        Un-ignore
-      </button>
-    </li>
-  );
-}
-
-function Row({
-  item,
+// Shared search box + word chips + result list with a "Link" button. Used by
+// both the unlinked Row and the linked row's "Change" mode.
+function ProductSearch({
+  rawIngredient,
+  words,
+  initialQuery,
   onLinked,
-  onIgnore,
 }: {
-  item: UnlinkedItem;
+  rawIngredient: string;
+  words: string[];
+  initialQuery: string;
   onLinked: (p: SearchProduct) => void;
-  onIgnore: () => void;
 }) {
-  // Prefill the search box with the Dutch search term.
-  const [query, setQuery] = useState(item.prefill || item.words.join(" "));
+  const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -161,11 +121,11 @@ function Row({
 
   function searchWord(word: string) {
     setQuery(word);
-    void search({ ingredient: item.raw, query: word });
+    void search({ ingredient: rawIngredient, query: word });
   }
   function manualSearch(e: React.FormEvent) {
     e.preventDefault();
-    if (query.trim()) void search({ ingredient: item.raw, query: query.trim() });
+    if (query.trim()) void search({ ingredient: rawIngredient, query: query.trim() });
   }
 
   async function link(p: SearchProduct) {
@@ -175,7 +135,7 @@ function Row({
       const res = await fetch("/api/mappings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rawIngredient: item.raw, translated: query || item.raw, product: p }),
+        body: JSON.stringify({ rawIngredient, translated: query || rawIngredient, product: p }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -191,24 +151,9 @@ function Row({
   }
 
   return (
-    <li className="rounded-lg border border-stone-200 p-3">
-      <div className="flex items-baseline gap-2">
-        <div className="flex flex-1 flex-wrap items-baseline gap-2">
-          <span className="text-sm font-medium">{item.raw}</span>
-          <RecipeLinks recipes={item.recipes} />
-        </div>
-        <button
-          onClick={onIgnore}
-          title="Hide this junk line"
-          className="flex-none text-xs text-stone-400 hover:text-red-600"
-        >
-          Ignore
-        </button>
-      </div>
-
-      {/* Word chips + manual search */}
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        {item.words.map((w) => (
+    <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {words.map((w) => (
           <button
             key={w}
             onClick={() => searchWord(w)}
@@ -262,6 +207,121 @@ function Row({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function LinkedRow({
+  item,
+  onUnlink,
+  onChanged,
+}: {
+  item: LinkedItem;
+  onUnlink: () => void;
+  onChanged: (p: SearchProduct) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  return (
+    <li className="rounded-lg border border-green-200 bg-green-50/60 p-3">
+      <div className="flex items-center gap-3">
+        {item.product.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.product.imageUrl} alt={item.product.name} className="h-10 w-10 flex-none rounded object-cover" />
+        ) : (
+          <div className="flex h-10 w-10 flex-none items-center justify-center rounded bg-stone-100">🛒</div>
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline gap-2">
+            <span className="text-sm font-medium">{item.raw}</span>
+            <RecipeLinks recipes={item.recipes} />
+          </div>
+          <p className="truncate text-xs text-green-800">
+            <span className="text-green-600">✓</span> {item.product.name}
+            {[item.product.unitQuantity, euro(item.product.priceCents)].filter(Boolean).length ? (
+              <span className="text-stone-500">
+                {" · "}
+                {[item.product.unitQuantity, euro(item.product.priceCents)].filter(Boolean).join(" · ")}
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex flex-none gap-2">
+          <button
+            onClick={() => setEditing((v) => !v)}
+            className="text-xs text-stone-500 hover:text-brand-600"
+          >
+            {editing ? "Close" : "Change"}
+          </button>
+          <button onClick={onUnlink} className="text-xs text-stone-400 hover:text-red-600">
+            Unlink
+          </button>
+        </div>
+      </div>
+      {editing ? (
+        <ProductSearch
+          rawIngredient={item.raw}
+          words={[]}
+          initialQuery={item.product.name}
+          onLinked={(p) => {
+            onChanged(p);
+            setEditing(false);
+          }}
+        />
+      ) : null}
+    </li>
+  );
+}
+
+function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () => void }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-2">
+          <span className="text-sm text-stone-500 line-through">{item.raw}</span>
+          <RecipeLinks recipes={item.recipes} />
+        </div>
+      </div>
+      <button
+        onClick={onUnignore}
+        className="flex-none rounded-full bg-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-300"
+      >
+        Un-ignore
+      </button>
+    </li>
+  );
+}
+
+function Row({
+  item,
+  onLinked,
+  onIgnore,
+}: {
+  item: UnlinkedItem;
+  onLinked: (p: SearchProduct) => void;
+  onIgnore: () => void;
+}) {
+  return (
+    <li className="rounded-lg border border-stone-200 p-3">
+      <div className="flex items-baseline gap-2">
+        <div className="flex flex-1 flex-wrap items-baseline gap-2">
+          <span className="text-sm font-medium">{item.raw}</span>
+          <RecipeLinks recipes={item.recipes} />
+        </div>
+        <button
+          onClick={onIgnore}
+          title="Hide this junk line"
+          className="flex-none text-xs text-stone-400 hover:text-red-600"
+        >
+          Ignore
+        </button>
+      </div>
+
+      <ProductSearch
+        rawIngredient={item.raw}
+        words={item.words}
+        initialQuery={item.prefill || item.words.join(" ")}
+        onLinked={onLinked}
+      />
     </li>
   );
 }
@@ -284,6 +344,9 @@ export default function BulkLinkClient({
   const [sessionIgnored, setSessionIgnored] = useState<IgnoredItem[]>([]);
   const [serverIgnoredHidden, setServerIgnoredHidden] = useState<Set<string>>(() => new Set());
   const [restoredUnlinked, setRestoredUnlinked] = useState<UnlinkedItem[]>([]);
+  // Linked items unlinked this session, and per-key product overrides from "Change".
+  const [linkedHidden, setLinkedHidden] = useState<Set<string>>(() => new Set());
+  const [changedProducts, setChangedProducts] = useState<Record<string, LinkedProduct>>({});
 
   const originalUnlinkedKeys = useMemo(() => new Set(unlinked.map((i) => i.key)), [unlinked]);
 
@@ -317,6 +380,43 @@ export default function BulkLinkClient({
     ]);
   }
 
+  function handleUnlink(item: LinkedItem) {
+    // Remove from the linked view…
+    setSessionLinked((prev) => prev.filter((x) => x.key !== item.key));
+    setLinkedHidden((prev) => new Set(prev).add(item.key));
+    setChangedProducts((prev) => {
+      const { [item.key]: _drop, ...rest } = prev;
+      return rest;
+    });
+    // …and put it back under unlinked.
+    if (originalUnlinkedKeys.has(item.key)) {
+      setDismissed((prev) => {
+        const n = new Set(prev);
+        n.delete(item.key);
+        return n;
+      });
+    } else {
+      setRestoredUnlinked((prev) => [
+        { key: item.key, raw: item.raw, count: item.count, recipes: item.recipes, words: [], prefill: "" },
+        ...prev,
+      ]);
+    }
+    void unlinkIngredient(item.key).catch(() => {});
+  }
+
+  function handleChangedProduct(item: LinkedItem, p: SearchProduct) {
+    // The /api/mappings POST already upserted; reflect the new product in place.
+    setChangedProducts((prev) => ({
+      ...prev,
+      [item.key]: {
+        name: p.name,
+        imageUrl: p.imageUrl,
+        priceCents: p.priceCents,
+        unitQuantity: p.unitQuantity,
+      },
+    }));
+  }
+
   function handleIgnore(item: UnlinkedItem) {
     setDismissed((prev) => new Set(prev).add(item.key));
     setSessionIgnored((prev) => [
@@ -347,16 +447,22 @@ export default function BulkLinkClient({
   }
 
   const f = filter.trim().toLowerCase();
-  const match = (raw: string, key: string) =>
-    !f || raw.toLowerCase().includes(f) || key.includes(f);
+  // Match the typed filter against any of the given fields (ingredient line,
+  // normalized key, and — for linked rows — the Picnic product name).
+  const matches = (...fields: (string | undefined)[]) =>
+    !f || fields.some((s) => s?.toLowerCase().includes(f));
 
   const unlinkedAll = useMemo(
     () => [...unlinked, ...restoredUnlinked].filter((i) => !dismissed.has(i.key)),
     [unlinked, restoredUnlinked, dismissed],
   );
   const linkedAll = useMemo(
-    () => [...sessionLinked, ...linked].sort((a, b) => a.raw.localeCompare(b.raw)),
-    [linked, sessionLinked],
+    () =>
+      [...sessionLinked, ...linked]
+        .filter((i) => !linkedHidden.has(i.key))
+        .map((i) => (changedProducts[i.key] ? { ...i, product: changedProducts[i.key] } : i))
+        .sort((a, b) => a.raw.localeCompare(b.raw)),
+    [linked, sessionLinked, linkedHidden, changedProducts],
   );
   const ignoredAll = useMemo(
     () =>
@@ -366,9 +472,9 @@ export default function BulkLinkClient({
     [ignored, sessionIgnored, serverIgnoredHidden],
   );
 
-  const unlinkedShown = unlinkedAll.filter((i) => match(i.raw, i.key));
-  const linkedShown = linkedAll.filter((i) => match(i.raw, i.key));
-  const ignoredShown = ignoredAll.filter((i) => match(i.raw, i.key));
+  const unlinkedShown = unlinkedAll.filter((i) => matches(i.raw, i.key));
+  const linkedShown = linkedAll.filter((i) => matches(i.raw, i.key, i.product.name));
+  const ignoredShown = ignoredAll.filter((i) => matches(i.raw, i.key));
 
   const chips: { v: View; label: string; n: number }[] = [
     { v: "all", label: "All", n: unlinkedAll.length + linkedAll.length },
@@ -402,7 +508,7 @@ export default function BulkLinkClient({
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter ingredients…"
+          placeholder="Filter ingredients or products…"
           className="input max-w-xs !py-1.5 text-sm"
         />
       </div>
@@ -437,7 +543,12 @@ export default function BulkLinkClient({
           ) : null}
           <ul className="space-y-2">
             {linkedShown.map((item) => (
-              <LinkedRow key={item.key} item={item} />
+              <LinkedRow
+                key={item.key}
+                item={item}
+                onUnlink={() => handleUnlink(item)}
+                onChanged={(p) => handleChangedProduct(item, p)}
+              />
             ))}
           </ul>
           {linkedShown.length === 0 ? (
