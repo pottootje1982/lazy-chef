@@ -6,6 +6,7 @@ import { deleteRecipe } from "@/app/actions";
 import { normalizeIngredient } from "@/lib/translate";
 import { productImageUrl } from "@/lib/picnic";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
+import RecipeSelectToggle from "./RecipeSelectToggle";
 
 export default async function RecipeDetailPage({
   params,
@@ -60,16 +61,19 @@ export default async function RecipeDetailPage({
             <p className="mt-2 text-stone-600">{recipe.description}</p>
           ) : null}
         </div>
-        {isGuest ? null : (
-          <div className="flex gap-2">
-            <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
-              Edit
-            </Link>
-            <form action={deleteAction}>
-              <button className="btn-danger">Delete</button>
-            </form>
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          <RecipeSelectToggle recipeId={recipe.id} />
+          {isGuest ? null : (
+            <>
+              <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
+                Edit
+              </Link>
+              <form action={deleteAction}>
+                <button className="btn-danger">Delete</button>
+              </form>
+            </>
+          )}
+        </div>
       </div>
 
       {recipe.imageUrl ? (

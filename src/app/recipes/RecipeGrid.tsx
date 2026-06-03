@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  useSelectionSet,
+  SELECTED_RECIPES_KEY,
+  SELECTED_LISTS_KEY,
+} from "@/lib/use-selection";
 
 export type RecipeCard = {
   id: string;
@@ -26,21 +30,14 @@ export default function RecipeGrid({
   lists: GroceryListCard[];
 }) {
   const router = useRouter();
-  const [recipeSel, setRecipeSel] = useState<Set<string>>(new Set());
-  const [listSel, setListSel] = useState<Set<string>>(new Set());
-
-  function toggle(setter: typeof setRecipeSel, id: string) {
-    setter((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
+  const { ids: recipeSel, toggle: toggleRecipe, clear: clearRecipes } =
+    useSelectionSet(SELECTED_RECIPES_KEY);
+  const { ids: listSel, toggle: toggleList, clear: clearLists } =
+    useSelectionSet(SELECTED_LISTS_KEY);
 
   function clear() {
-    setRecipeSel(new Set());
-    setListSel(new Set());
+    clearRecipes();
+    clearLists();
   }
 
   function order() {
@@ -74,7 +71,7 @@ export default function RecipeGrid({
                   <input
                     type="checkbox"
                     checked={isSelected}
-                    onChange={() => toggle(setListSel, list.id)}
+                    onChange={() => toggleList(list.id)}
                     className="h-4 w-4 flex-none accent-brand-600"
                     title="Select for ordering"
                   />
@@ -109,7 +106,7 @@ export default function RecipeGrid({
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  onChange={() => toggle(setRecipeSel, recipe.id)}
+                  onChange={() => toggleRecipe(recipe.id)}
                   className="h-4 w-4 accent-brand-600"
                 />
               </label>
