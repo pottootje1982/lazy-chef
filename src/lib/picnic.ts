@@ -1,4 +1,8 @@
 import PicnicClient from "picnic-api";
+import { productImageUrl } from "./picnic-image";
+
+// Re-exported so existing server imports (`@/lib/picnic`) keep working.
+export { productImageUrl };
 
 // SellingUnit shape we care about (from picnic-api catalog.search()).
 export type PicnicProduct = {
@@ -9,17 +13,6 @@ export type PicnicProduct = {
   unitQuantity: string | null;
   imageUrl: string | null;
 };
-
-const IMAGE_HOST = "https://storefront-prod.nl.picnicinternational.com";
-
-// Public static image URL (no auth needed) for a product image id.
-export function productImageUrl(
-  imageId: string | null | undefined,
-  size: "tiny" | "small" | "medium" | "large" = "medium",
-): string | null {
-  if (!imageId) return null;
-  return `${IMAGE_HOST}/static/images/${imageId}/${size}.png`;
-}
 
 export function createClient(authKey?: string) {
   return new PicnicClient({ countryCode: "NL", ...(authKey ? { authKey } : {}) });
@@ -70,7 +63,7 @@ export async function verify2FA(pendingKey: string, code: string): Promise<Login
 export async function searchProducts(
   authKey: string,
   query: string,
-  limit = 8,
+  limit = 30,
 ): Promise<PicnicProduct[]> {
   const client = createClient(authKey);
   const results = await client.catalog.search(query);
@@ -91,6 +84,33 @@ export async function searchProducts(
       unitQuantity: u.unit_quantity ?? null,
       imageUrl: productImageUrl(u.image_id),
     }));
+}
+
+// ---- Product detail (for the hover preview) ----
+export type ProductDetail = {
+  description: string | null;
+  brand: string | null;
+  unitPrice: string | null;
+  highlights: string[];
+};
+
+export async function getProductDetail(
+  authKey: string,
+  picnicId: string,
+): Promise<ProductDetail | null> {
+  const client = createClient(authKey);
+  try {
+    // Experimental in picnic-api (parses the dynamic product page) — guard it.
+    const d = await client.catalog.getProductDetails(picnicId);
+    return {
+      description: d?.description ?? null,
+      brand: d?.brand ?? null,
+      unitPrice: d?.unitPrice ?? null,
+      highlights: Array.isArray(d?.highlights) ? d.highlights : [],
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ---- Cart ----

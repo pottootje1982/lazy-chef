@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import ProductHoverCard from "@/components/ProductHoverCard";
 
 export type LinkedProduct = {
   mappingId: string;
@@ -45,6 +46,7 @@ function Row({
   const [query, setQuery] = useState(""); // editable Picnic search term
   const [searched, setSearched] = useState(false);
   const [results, setResults] = useState<SearchProduct[]>([]);
+  const [visible, setVisible] = useState(8);
 
   // body is { ingredient } for the auto search, or { ingredient, query } when
   // the user edits the search term and re-runs it.
@@ -68,6 +70,7 @@ function Row({
       }
       if (typeof data.translated === "string") setQuery(data.translated);
       setResults(data.products ?? []);
+      setVisible(8);
       setSearched(true);
     } catch {
       setError("Something went wrong searching Picnic.");
@@ -222,8 +225,12 @@ function Row({
           ) : null}
 
           <div className="space-y-2">
-            {results.map((p, i) => (
-              <div key={`${p.picnicId}-${i}`} className="flex items-center gap-3 rounded border border-stone-100 p-2">
+            {results.slice(0, visible).map((p, i) => (
+              <ProductHoverCard
+                key={`${p.picnicId}-${i}`}
+                product={p}
+                className="flex items-center gap-3 rounded border border-stone-100 p-2"
+              >
                 {p.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={p.imageUrl} alt={p.name} className="h-10 w-10 flex-none rounded object-cover" />
@@ -243,8 +250,16 @@ function Row({
                 >
                   {busyId === p.picnicId ? "…" : "Select"}
                 </button>
-              </div>
+              </ProductHoverCard>
             ))}
+            {results.length > visible ? (
+              <button
+                onClick={() => setVisible((v) => v + 8)}
+                className="w-full rounded border border-stone-200 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+              >
+                Load more ({results.length - visible})
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}

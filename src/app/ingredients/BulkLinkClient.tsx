@@ -7,6 +7,7 @@ import {
   unignoreIngredient,
   unlinkIngredient,
 } from "@/lib/ingredient-actions";
+import ProductHoverCard from "@/components/ProductHoverCard";
 
 export type UnlinkedItem = {
   key: string;
@@ -94,6 +95,7 @@ function ProductSearch({
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [visible, setVisible] = useState(8);
 
   async function search(body: { ingredient: string; query?: string }) {
     setLoading(true);
@@ -111,6 +113,7 @@ function ProductSearch({
       }
       if (typeof data.translated === "string") setQuery(data.translated);
       setResults(data.products ?? []);
+      setVisible(8);
       setSearched(true);
     } catch {
       setError("Something went wrong searching Picnic.");
@@ -182,8 +185,12 @@ function ProductSearch({
 
       {results.length > 0 ? (
         <div className="mt-2 space-y-2">
-          {results.map((p, i) => (
-            <div key={`${p.picnicId}-${i}`} className="flex items-center gap-3 rounded border border-stone-100 p-2">
+          {results.slice(0, visible).map((p, i) => (
+            <ProductHoverCard
+              key={`${p.picnicId}-${i}`}
+              product={p}
+              className="flex items-center gap-3 rounded border border-stone-100 p-2"
+            >
               {p.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={p.imageUrl} alt={p.name} className="h-10 w-10 flex-none rounded object-cover" />
@@ -203,8 +210,16 @@ function ProductSearch({
               >
                 {busyId === p.picnicId ? "…" : "Link"}
               </button>
-            </div>
+            </ProductHoverCard>
           ))}
+          {results.length > visible ? (
+            <button
+              onClick={() => setVisible((v) => v + 8)}
+              className="w-full rounded border border-stone-200 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
+            >
+              Load more ({results.length - visible})
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
