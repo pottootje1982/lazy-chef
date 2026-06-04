@@ -23,6 +23,7 @@ const CHIP_DROP_EXTRA = new Set([
   "plakjes", "blik", "pot", "zak", "bosje", "bos", "snufje", "scheut", "scheutje",
   "mespunt", "klontje", "handje", "beetje", "takje", "takjes", "teen", "teentje",
   "teentjes", "tenen", "stengel", "stengels", "bol", "bolletje", "krop", "struik",
+  "eetl", "theel",
   // Dutch qualifiers / prep
   "verse", "vers", "grote", "groot", "kleine", "klein", "fijne", "fijn", "grove",
   "grof", "jonge", "jong", "oude", "oud", "gedroogde", "gerookte", "gekookte",

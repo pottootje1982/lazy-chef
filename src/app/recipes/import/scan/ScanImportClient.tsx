@@ -91,6 +91,7 @@ export default function ScanImportClient() {
 
   const [extracting, setExtracting] = useState(false);
   const [saveOriginal, setSaveOriginal] = useState(true);
+  const [stepsPerBox, setStepsPerBox] = useState(false);
   const [values, setValues] = useState<RecipeFormValues | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
@@ -239,15 +240,17 @@ export default function ScanImportClient() {
     () => {
       const wordsIn = (r: DrawnRect) => (ocr ? wordsInRect(ocr.words, r) : []);
       const ofType = (t: RegionType) => rects.filter((r) => r.type === t);
+      // One paragraph per directions box, in draw order. Used as separate steps
+      // when "treat boxes as steps" is on, or joined into one step otherwise.
+      const directionSteps = ofType("DIRECTIONS")
+        .map((r) => joinAsParagraph(wordsIn(r)))
+        .filter(Boolean);
       return {
         title: joinAsTitle(ofType("TITLE").flatMap(wordsIn)),
         // One box per ingredient column → concatenate each column's lines.
         ingredients: ofType("INGREDIENTS").flatMap((r) => linesFromWords(wordsIn(r))),
-        // Directions become a single step; columns are joined in the order drawn.
-        directions: ofType("DIRECTIONS")
-          .map((r) => joinAsParagraph(wordsIn(r)))
-          .filter(Boolean)
-          .join(" "),
+        directionSteps,
+        directions: directionSteps.join(" "),
         hasImage: rects.some((r) => r.type === "IMAGE"),
       };
     },
@@ -296,7 +299,12 @@ export default function ScanImportClient() {
         prepTime: "",
         cookTime: "",
         ingredients: preview.ingredients,
-        instructions: preview.directions ? [preview.directions] : [],
+        // One step per box when requested, else all boxes combined into one step.
+        instructions: stepsPerBox
+          ? preview.directionSteps
+          : preview.directions
+            ? [preview.directions]
+            : [],
         tags: [],
       };
       setValues(next);
@@ -462,12 +470,34 @@ export default function ScanImportClient() {
               </ul>
             </RegionPreview>
             <RegionPreview label="Directions" empty={!preview.directions}>
-              <p className="whitespace-pre-wrap">{preview.directions}</p>
+              {stepsPerBox && preview.directionSteps.length > 1 ? (
+                <ol className="list-decimal space-y-1 pl-5">
+                  {preview.directionSteps.map((s, i) => (
+                    <li key={i} className="whitespace-pre-wrap">
+                      {s}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="whitespace-pre-wrap">{preview.directions}</p>
+              )}
             </RegionPreview>
             <RegionPreview label="Image" empty={!preview.hasImage}>
               {preview.hasImage ? "Marked — will be cropped and saved." : null}
             </RegionPreview>
           </div>
+
+          {preview.directionSteps.length >= 2 ? (
+            <label className="flex items-center gap-2 text-sm text-stone-600">
+              <input
+                type="checkbox"
+                checked={stepsPerBox}
+                onChange={(e) => setStepsPerBox(e.target.checked)}
+                className="h-4 w-4 rounded border-stone-300"
+              />
+              Treat separate direction boxes as steps
+            </label>
+          ) : null}
 
           <label className="flex items-center gap-2 text-sm text-stone-600">
             <input

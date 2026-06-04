@@ -36,6 +36,7 @@ const STOPWORDS = new Set([
   // ── Dutch ──────────────────────────────────────────────────────────────
   // units & measures
   "el", "tl", "dl", "cl", "eetlepel", "eetlepels", "theelepel", "theelepels",
+  "eetl", "theel", "kl", // common OCR abbreviations (eetl. / theel. / koffielepel)
   "gram", "grammen", "kilo", "kilogram", "ons", "mespunt", "mespunten", "snuf",
   "snufje", "scheut", "scheutje", "scheutjes", "klont", "klontje", "klontjes",
   "takje", "takjes", "teen", "teentje", "teentjes", "tenen", "stengel", "stengels",
@@ -93,6 +94,7 @@ const COUNT_UNIT_TOKENS = new Set([
   // Dutch measures (recipes are mixed EN/NL): weights, spoons, pinches and
   // sub-product units like garlic cloves (teen/tenen) and sprigs (takje).
   "gram", "gr", "kilo", "ons", "el", "tl", "eetlepel", "eetlepels",
+  "eetl", "theel", "kl", // OCR abbreviations: eetl. / theel. / koffielepel
   "theelepel", "theelepels", "snufje", "mespunt", "scheut", "scheutje",
   "teen", "tenen", "teentje", "teentjes", "takje", "takjes", "stengel",
   "stengels", "klontje", "klontjes", "handje", "handjes",
