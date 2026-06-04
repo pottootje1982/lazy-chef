@@ -85,6 +85,19 @@ export default async function RecipeDetailPage({
         />
       ) : null}
 
+      {recipe.sourceImageUrl ? (
+        <p className="mt-2 text-sm text-stone-400">
+          <a
+            href={recipe.sourceImageUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-600 hover:underline"
+          >
+            📷 View original scan
+          </a>
+        </p>
+      ) : null}
+
       <div className="mt-6 flex flex-wrap gap-6 text-sm text-stone-600">
         {recipe.servings ? (
           <span>

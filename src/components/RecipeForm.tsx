@@ -8,6 +8,7 @@ export type RecipeFormValues = {
   title: string;
   description: string;
   imageUrl: string;
+  sourceImageUrl: string;
   sourceUrl: string;
   servings: string;
   prepTime: string;
@@ -106,6 +107,8 @@ export default function RecipeForm({
 
   return (
     <form action={formAction} className="space-y-6">
+      {/* Carried through from the photo-scan importer; not user-editable. */}
+      <input type="hidden" name="sourceImageUrl" defaultValue={initial.sourceImageUrl} />
       {state?.error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {state.error}

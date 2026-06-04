@@ -7,6 +7,7 @@ const EMPTY = {
   title: "",
   description: "",
   imageUrl: "",
+  sourceImageUrl: "",
   sourceUrl: "",
   servings: "",
   prepTime: "",

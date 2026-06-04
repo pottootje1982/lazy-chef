@@ -18,6 +18,24 @@ export function wordsInRect(words: OcrWord[], rect: Rect): OcrWord[] {
   });
 }
 
+// Clean up OCR text: Vision emits punctuation and hyphen fragments as separate
+// tokens, so a naive space-join produces "( optional )", "salt , pepper ." and
+// words broken across a line ("choco- late"). This fixes the spacing and
+// rejoins hyphenated line breaks.
+export function tidyText(s: string): string {
+  return s
+    .replace(/\s+/g, " ")
+    // Rejoin a word hyphenated across a line break: "choco- late" → "chocolate".
+    // Only when a letter is glued to the hyphen (the line-break signature), so
+    // intentional dashes ("salt - to taste") and "free-range" are left alone.
+    .replace(/(\p{L})-\s+(\p{L})/gu, "$1$2")
+    // No space after an opening bracket.
+    .replace(/([([{])\s+/g, "$1")
+    // No space before closing brackets or sentence punctuation.
+    .replace(/\s+([)\]}.,;:!?%])/g, "$1")
+    .trim();
+}
+
 function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -55,23 +73,26 @@ export function groupIntoLines(words: OcrWord[]): string[] {
   if (current.length) lines.push(current);
 
   return lines
-    .map((line) =>
-      [...line]
-        .sort((a, b) => a.x - b.x)
-        .map((w) => w.text)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim(),
-    )
+    .map((line) => tidyText([...line].sort((a, b) => a.x - b.x).map((w) => w.text).join(" ")))
     .filter(Boolean);
+}
+
+// All lines joined into one tidy string (rejoins hyphenation across line breaks).
+function joinLines(words: OcrWord[]): string {
+  return tidyText(groupIntoLines(words).join(" "));
 }
 
 // Title region → a single string (multi-line titles collapse to one line).
 export function joinAsTitle(words: OcrWord[]): string {
-  return groupIntoLines(words).join(" ").trim();
+  return joinLines(words);
 }
 
-// Ingredients / directions region → one array element per detected line.
+// A multi-line region collapsed into one paragraph (e.g. directions = 1 step).
+export function joinAsParagraph(words: OcrWord[]): string {
+  return joinLines(words);
+}
+
+// Ingredients region → one array element per detected line.
 export function linesFromWords(words: OcrWord[]): string[] {
   return groupIntoLines(words);
 }

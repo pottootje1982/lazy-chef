@@ -31,6 +31,7 @@ export default function ImportClient() {
         title: r.title ?? "",
         description: r.description ?? "",
         imageUrl: r.imageUrl ?? "",
+        sourceImageUrl: "",
         sourceUrl: r.sourceUrl ?? url,
         servings: r.servings ?? "",
         prepTime: r.prepTime ?? "",

@@ -4,6 +4,7 @@ export const recipeSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(300),
   description: z.string().trim().max(5000).optional().or(z.literal("")),
   imageUrl: z.string().trim().url().optional().or(z.literal("")),
+  sourceImageUrl: z.string().trim().url().optional().or(z.literal("")),
   sourceUrl: z.string().trim().url().optional().or(z.literal("")),
   servings: z.string().trim().max(100).optional().or(z.literal("")),
   prepTime: z.string().trim().max(100).optional().or(z.literal("")),

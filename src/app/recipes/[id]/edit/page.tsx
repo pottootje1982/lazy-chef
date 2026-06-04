@@ -28,6 +28,7 @@ export default async function EditRecipePage({
           title: recipe.title,
           description: recipe.description ?? "",
           imageUrl: recipe.imageUrl ?? "",
+          sourceImageUrl: recipe.sourceImageUrl ?? "",
           sourceUrl: recipe.sourceUrl ?? "",
           servings: recipe.servings ?? "",
           prepTime: recipe.prepTime ?? "",

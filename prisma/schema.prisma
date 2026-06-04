@@ -84,6 +84,7 @@ model Recipe {
   title        String
   description  String?
   imageUrl     String?
+  sourceImageUrl String? // full original photo from the OCR scan importer (GCS)
   sourceUrl    String?
   servings     String?
   prepTime     String?

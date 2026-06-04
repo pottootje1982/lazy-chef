@@ -6,6 +6,7 @@ import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
 import {
   wordsInRect,
   joinAsTitle,
+  joinAsParagraph,
   linesFromWords,
   type OcrWord,
   type Rect,
@@ -48,6 +49,7 @@ export default function ScanImportClient() {
   const [drag, setDrag] = useState<{ x: number; y: number; cx: number; cy: number } | null>(null);
 
   const [extracting, setExtracting] = useState(false);
+  const [saveOriginal, setSaveOriginal] = useState(true);
   const [values, setValues] = useState<RecipeFormValues | null>(null);
 
   const imgRef = useRef<HTMLImageElement>(null);
@@ -170,7 +172,9 @@ export default function ScanImportClient() {
     () => ({
       title: joinAsTitle(wordsForType("TITLE")),
       ingredients: linesFromWords(wordsForType("INGREDIENTS")),
-      instructions: linesFromWords(wordsForType("DIRECTIONS")),
+      // Directions from a photo become a single step — line breaks in the
+      // image are layout, not separate steps.
+      directions: joinAsParagraph(wordsForType("DIRECTIONS")),
       hasImage: rects.some((r) => r.type === "IMAGE"),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -184,21 +188,27 @@ export default function ScanImportClient() {
     setImageNote(null);
     try {
       let imageUrl = "";
+      let sourceImageUrl = "";
       const imageRect = rects.find((r) => r.type === "IMAGE");
-      if (imageRect && file) {
+      // Only upload when there's something to store: the original (opt-in) or a crop.
+      if (file && (saveOriginal || imageRect)) {
         const fd = new FormData();
         fd.append("image", file);
-        fd.append("x", String(imageRect.x));
-        fd.append("y", String(imageRect.y));
-        fd.append("w", String(imageRect.w));
-        fd.append("h", String(imageRect.h));
+        if (saveOriginal) fd.append("saveSource", "1");
+        if (imageRect) {
+          fd.append("x", String(imageRect.x));
+          fd.append("y", String(imageRect.y));
+          fd.append("w", String(imageRect.w));
+          fd.append("h", String(imageRect.h));
+        }
         const res = await fetch("/api/recipes/scan/image", { method: "POST", body: fd });
         const data = await res.json();
         if (res.ok) {
           imageUrl = data.imageUrl ?? "";
+          sourceImageUrl = data.sourceImageUrl ?? "";
         } else {
           // Non-fatal: keep the extracted text, just skip the photo.
-          setImageNote(data.error ?? "Couldn't save the image crop — you can add one later.");
+          setImageNote(data.error ?? "Couldn't save the scan image — you can add one later.");
         }
       }
 
@@ -206,12 +216,13 @@ export default function ScanImportClient() {
         title: preview.title,
         description: "",
         imageUrl,
+        sourceImageUrl,
         sourceUrl: "",
         servings: "",
         prepTime: "",
         cookTime: "",
         ingredients: preview.ingredients,
-        instructions: preview.instructions,
+        instructions: preview.directions ? [preview.directions] : [],
         tags: [],
       };
       setValues(next);
@@ -247,7 +258,7 @@ export default function ScanImportClient() {
 
   const { sx, sy } = scale();
   const hasAnything =
-    preview.title || preview.ingredients.length || preview.instructions.length || preview.hasImage;
+    preview.title || preview.ingredients.length || preview.directions || preview.hasImage;
 
   return (
     <div className="space-y-5">
@@ -355,17 +366,23 @@ export default function ScanImportClient() {
                 ))}
               </ul>
             </RegionPreview>
-            <RegionPreview label="Directions" empty={preview.instructions.length === 0}>
-              <ol className="list-decimal space-y-0.5 pl-5">
-                {preview.instructions.map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ol>
+            <RegionPreview label="Directions" empty={!preview.directions}>
+              <p className="whitespace-pre-wrap">{preview.directions}</p>
             </RegionPreview>
             <RegionPreview label="Image" empty={!preview.hasImage}>
               {preview.hasImage ? "Marked — will be cropped and saved." : null}
             </RegionPreview>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-stone-600">
+            <input
+              type="checkbox"
+              checked={saveOriginal}
+              onChange={(e) => setSaveOriginal(e.target.checked)}
+              className="h-4 w-4 rounded border-stone-300"
+            />
+            Save the original photo with the recipe
+          </label>
 
           <button
             onClick={extract}
