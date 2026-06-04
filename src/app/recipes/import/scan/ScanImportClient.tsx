@@ -350,16 +350,27 @@ export default function ScanImportClient() {
 
   return (
     <div className="space-y-5">
-      {/* Step 1 — choose a photo */}
-      <label className="btn-primary inline-block cursor-pointer">
-        {file ? "Choose a different photo" : "Choose or take a photo"}
-        <input
-          type="file"
-          accept="image/*"
-          onChange={onChooseFile}
-          className="hidden"
-        />
-      </label>
+      {/* Step 1 — choose a photo. Two inputs: one opens the camera directly
+          (capture), one opens the gallery/file picker. On desktop both just
+          open the file dialog. */}
+      <div className="flex flex-wrap gap-3">
+        <label className="btn-primary inline-block cursor-pointer">
+          📷 {file ? "Take a new photo" : "Take a photo"}
+          {/* sr-only (not display:none) — some Android webviews won't trigger the
+              camera for a display:none input. */}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={onChooseFile}
+            className="sr-only"
+          />
+        </label>
+        <label className="btn-secondary inline-block cursor-pointer">
+          🖼 Choose from library
+          <input type="file" accept="image/*" onChange={onChooseFile} className="sr-only" />
+        </label>
+      </div>
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
