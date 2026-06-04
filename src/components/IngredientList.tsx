@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
+import { markIngredientUnavailable, markIngredientAvailable } from "@/lib/ingredient-actions";
 
 export type LinkedProduct = {
   mappingId: string;
@@ -13,7 +14,12 @@ export type LinkedProduct = {
   unitQuantity: string | null;
 };
 
-export type IngredientItem = { raw: string; product: LinkedProduct | null };
+export type IngredientItem = {
+  raw: string;
+  ingredientKey: string; // normalized key, used to flag (un)available
+  product: LinkedProduct | null;
+  unavailable: boolean;
+};
 
 function euro(cents: number | null): string | null {
   if (cents == null) return null;
@@ -31,6 +37,7 @@ function Row({
 }) {
   const [product, setProduct] = useState<LinkedProduct | null>(item.product);
   const [open, setOpen] = useState(false);
+  const [unavailable, setUnavailable] = useState(item.unavailable);
 
   async function unlink() {
     if (!product) return;
@@ -43,32 +50,72 @@ function Row({
     }
   }
 
+  async function setUnavail(next: boolean) {
+    setUnavailable(next); // optimistic
+    if (next) setOpen(false);
+    try {
+      if (next) await markIngredientUnavailable(item.ingredientKey);
+      else await markIngredientAvailable(item.ingredientKey);
+    } catch {
+      setUnavailable(!next); // revert on failure
+    }
+  }
+
   return (
-    <li className="rounded-lg border border-stone-200 p-3">
+    <li
+      className={`rounded-lg border p-3 ${
+        unavailable ? "border-amber-300 bg-amber-50" : "border-stone-200"
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex gap-2">
           <span className="mt-0.5 text-brand-500">•</span>
           <span className="text-sm">{item.raw}</span>
         </div>
-        {readOnly || product ? null : picnicLinked ? (
-          <button
-            onClick={() => setOpen(true)}
-            className="flex-none text-xs font-medium text-brand-600 hover:underline"
-          >
-            {open ? "Searching…" : "Link product"}
-          </button>
-        ) : (
-          <Link
-            href="/settings"
-            className="flex-none text-xs font-medium text-stone-400 hover:text-brand-600"
-          >
-            Connect Picnic
-          </Link>
+        {readOnly ? null : (
+          <div className="flex flex-none items-center gap-3">
+            {unavailable ? (
+              <button
+                onClick={() => setUnavail(false)}
+                className="text-xs font-medium text-amber-700 hover:underline"
+              >
+                Mark available
+              </button>
+            ) : (
+              <>
+                {product ? null : picnicLinked ? (
+                  <button
+                    onClick={() => setOpen(true)}
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    {open ? "Searching…" : "Link product"}
+                  </button>
+                ) : (
+                  <Link
+                    href="/settings"
+                    className="text-xs font-medium text-stone-400 hover:text-brand-600"
+                  >
+                    Connect Picnic
+                  </Link>
+                )}
+                <button
+                  onClick={() => setUnavail(true)}
+                  className="text-xs text-stone-400 hover:text-amber-700"
+                >
+                  Not available
+                </button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
+      {unavailable ? (
+        <p className="mt-2 text-xs text-amber-700">🛒 Not available at the grocer — buy elsewhere.</p>
+      ) : null}
+
       {/* Linked product summary */}
-      {product ? (
+      {!unavailable && product ? (
         <div className="mt-2 flex items-center gap-3 rounded-lg bg-stone-50 p-2">
           {product.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

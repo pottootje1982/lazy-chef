@@ -22,17 +22,24 @@ export default async function RecipeDetailPage({
 
   // Build the per-ingredient view: pair each line with its saved product mapping.
   const [user, mappings] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
+    prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { picnicAuthKey: true, unavailableIngredients: true },
+    }),
     prisma.productMapping.findMany({ where: { userId: session.user.id } }),
   ]);
   const picnicLinked = Boolean(user?.picnicAuthKey);
   const isGuest = Boolean(session.user.isGuest);
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
+  const unavailableSet = new Set(user?.unavailableIngredients ?? []);
 
   const ingredientItems: IngredientItem[] = recipe.ingredients.map((raw) => {
-    const m = byKey.get(normalizeIngredient(raw));
+    const key = normalizeIngredient(raw);
+    const m = byKey.get(key);
     return {
       raw,
+      ingredientKey: key,
+      unavailable: unavailableSet.has(key),
       product: m
         ? {
             mappingId: m.id,
