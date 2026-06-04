@@ -36,6 +36,15 @@ const REGION = Object.fromEntries(REGIONS.map((r) => [r.type, r])) as Record<
 
 const MIN_DRAG = 8; // ignore tiny accidental drags (display px)
 
+// Corner resize handles. Each drags one corner while the opposite corner stays
+// anchored. `w`/`n` flag whether this corner controls the west/north edge.
+const CORNERS: { k: string; west: boolean; north: boolean; pos: React.CSSProperties; cursor: string }[] = [
+  { k: "nw", west: true, north: true, pos: { left: -6, top: -6 }, cursor: "nwse-resize" },
+  { k: "ne", west: false, north: true, pos: { right: -6, top: -6 }, cursor: "nesw-resize" },
+  { k: "sw", west: true, north: false, pos: { left: -6, bottom: -6 }, cursor: "nesw-resize" },
+  { k: "se", west: false, north: false, pos: { right: -6, bottom: -6 }, cursor: "nwse-resize" },
+];
+
 export default function ScanImportClient() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -47,6 +56,8 @@ export default function ScanImportClient() {
   const [rects, setRects] = useState<DrawnRect[]>([]);
   const [activeLabel, setActiveLabel] = useState<RegionType>("TITLE");
   const [drag, setDrag] = useState<{ x: number; y: number; cx: number; cy: number } | null>(null);
+  // While resizing: the rect being edited + its anchored (opposite) corner, in natural px.
+  const [resize, setResize] = useState<{ id: number; anchorX: number; anchorY: number } | null>(null);
 
   const [extracting, setExtracting] = useState(false);
   const [saveOriginal, setSaveOriginal] = useState(true);
@@ -157,6 +168,33 @@ export default function ScanImportClient() {
   }
   function removeRect(id: number) {
     setRects((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  // ── Resizing an existing box by a corner handle ────────────────────────────
+  function startResize(e: React.PointerEvent, rect: DrawnRect, corner: (typeof CORNERS)[number]) {
+    e.stopPropagation(); // don't start a new draw
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    // Anchor = the corner opposite the one being dragged (natural px).
+    setResize({
+      id: rect.id,
+      anchorX: corner.west ? rect.x + rect.w : rect.x,
+      anchorY: corner.north ? rect.y + rect.h : rect.y,
+    });
+  }
+  function onResizeMove(e: React.PointerEvent) {
+    if (!resize) return;
+    const { sx, sy } = scale();
+    const p = pointerToDisplay(e);
+    const nx = p.x * sx;
+    const ny = p.y * sy;
+    const x = Math.round(Math.min(resize.anchorX, nx));
+    const y = Math.round(Math.min(resize.anchorY, ny));
+    const w = Math.round(Math.abs(nx - resize.anchorX));
+    const h = Math.round(Math.abs(ny - resize.anchorY));
+    setRects((prev) => prev.map((r) => (r.id === resize.id ? { ...r, x, y, w, h } : r)));
+  }
+  function onResizeUp() {
+    setResize(null);
   }
 
   // ── Per-region extraction (memoized; reuses cached OCR words) ──────────────
@@ -297,6 +335,9 @@ export default function ScanImportClient() {
             ))}
             {ocrLoading ? <span className="text-xs text-stone-400">Reading text…</span> : null}
           </div>
+          <p className="-mt-2 text-xs text-stone-400">
+            Drag on the image to draw a box. Drag a box&apos;s corner handles to resize it, or ✕ to remove it.
+          </p>
 
           {/* Image + draw overlay */}
           <div className="relative inline-block max-w-full select-none">
@@ -324,17 +365,34 @@ export default function ScanImportClient() {
                     className={`absolute border-2 ${cfg.border} ${cfg.bg}`}
                     style={{ left: r.x / sx, top: r.y / sy, width: r.w / sx, height: r.h / sy }}
                   >
-                    <span className={`absolute left-0 top-0 px-1 text-[10px] font-medium text-white ${cfg.chip}`}>
-                      {cfg.label}
-                    </span>
-                    <button
+                    {/* Label + delete, floating just above the box */}
+                    <div
+                      className="absolute -top-5 left-0 flex items-center gap-1"
                       onPointerDown={(e) => e.stopPropagation()}
-                      onClick={() => removeRect(r.id)}
-                      className={`absolute right-0 top-0 h-4 w-4 text-[10px] leading-4 text-white ${cfg.chip}`}
-                      aria-label={`Remove ${cfg.label} box`}
                     >
-                      ✕
-                    </button>
+                      <span className={`px-1 text-[10px] font-medium text-white ${cfg.chip}`}>
+                        {cfg.label}
+                      </span>
+                      <button
+                        onClick={() => removeRect(r.id)}
+                        className={`h-4 w-4 rounded text-[10px] leading-4 text-white ${cfg.chip}`}
+                        aria-label={`Remove ${cfg.label} box`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    {/* Corner resize handles */}
+                    {CORNERS.map((corner) => (
+                      <span
+                        key={corner.k}
+                        onPointerDown={(e) => startResize(e, r, corner)}
+                        onPointerMove={onResizeMove}
+                        onPointerUp={onResizeUp}
+                        className={`absolute h-3 w-3 rounded-sm border border-white ${cfg.chip}`}
+                        style={{ ...corner.pos, cursor: corner.cursor, touchAction: "none" }}
+                        aria-label={`Resize ${cfg.label} box`}
+                      />
+                    ))}
                   </div>
                 );
               })}
