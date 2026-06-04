@@ -33,20 +33,34 @@ export async function POST(req: Request) {
   }
 
   try {
-    let searchTerm: string;
+    const authKey = decrypt(user.picnicAuthKey);
     let translated: string;
+    let products;
+
     if (manualQuery) {
       // User-supplied search term: use it verbatim, skip normalize/translate.
-      searchTerm = manualQuery;
       translated = manualQuery;
+      products = await searchProducts(authKey, manualQuery);
     } else {
+      // Picnic is a Dutch grocer and the cleaned ingredient key is usually
+      // already Dutch, so search it directly first. Only fall back to EN→NL
+      // translation when the direct search finds nothing — this avoids mangling
+      // Dutch terms (e.g. "spinazie" → "sinaasappel", "roomboter" → "kamerbot").
       const key = normalizeIngredient(ingredient!);
-      translated = await translateToDutch(key);
-      searchTerm = translated;
+      translated = key;
+      products = await searchProducts(authKey, key);
+      if (products.length === 0) {
+        const t = await translateToDutch(key);
+        if (t && t.toLowerCase() !== key.toLowerCase()) {
+          const viaTranslation = await searchProducts(authKey, t);
+          if (viaTranslation.length > 0) {
+            products = viaTranslation;
+            translated = t;
+          }
+        }
+      }
     }
 
-    const authKey = decrypt(user.picnicAuthKey);
-    const products = await searchProducts(authKey, searchTerm);
     // ingredientKey always derives from the original line so the saved mapping
     // stays consistent regardless of how the search was phrased.
     const ingredientKey = ingredient ? normalizeIngredient(ingredient) : translated;
