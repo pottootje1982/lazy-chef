@@ -31,6 +31,7 @@ function parseForm(formData: FormData) {
     ingredients: list("ingredients"),
     instructions: list("instructions"),
     tags: list("tags"),
+    categories: list("categories"),
   });
 }
 
@@ -68,6 +69,7 @@ export async function createRecipe(
       ingredients: data.ingredients,
       instructions: data.instructions,
       tags: data.tags,
+      categories: data.categories,
     },
   });
 
@@ -108,6 +110,7 @@ export async function updateRecipe(
       ingredients: data.ingredients,
       instructions: data.instructions,
       tags: data.tags,
+      categories: data.categories,
     },
   });
 

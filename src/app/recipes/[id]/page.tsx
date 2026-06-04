@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
 import { normalizeIngredient } from "@/lib/translate";
+import { CATEGORY_LABEL } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
 import RecipeSelectToggle from "./RecipeSelectToggle";
@@ -123,8 +124,21 @@ export default async function RecipeDetailPage({
         ) : null}
       </div>
 
-      {recipe.tags.length ? (
+      {recipe.categories.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
+          {recipe.categories.map((c) => (
+            <span
+              key={c}
+              className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
+            >
+              {CATEGORY_LABEL[c] ?? c}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {recipe.tags.length ? (
+        <div className="mt-3 flex flex-wrap gap-2">
           {recipe.tags.map((tag) => (
             <span
               key={tag}

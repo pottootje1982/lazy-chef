@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRecipe } from "@/app/actions";
 import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
+import { classify } from "@/lib/categories";
 import {
   wordsInRect,
   joinAsTitle,
@@ -308,6 +309,8 @@ export default function ScanImportClient() {
             ? [preview.directions]
             : [],
         tags: [],
+        // Suggested from the extracted title + ingredients (editable on the form).
+        categories: classify(preview.title, preview.ingredients),
       };
       setValues(next);
     } catch {

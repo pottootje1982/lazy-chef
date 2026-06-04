@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createRecipe } from "@/app/actions";
 import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
+import { classify } from "@/lib/categories";
 
 export default function ImportClient() {
   const [url, setUrl] = useState("");
@@ -39,6 +40,8 @@ export default function ImportClient() {
         ingredients: r.ingredients ?? [],
         instructions: r.instructions ?? [],
         tags: r.tags ?? [],
+        // Suggest categories from the scraped title + ingredients (editable).
+        categories: classify(r.title ?? "", r.ingredients ?? []),
       };
       setScraped(values);
       setPartial(values.ingredients.length === 0 && values.instructions.length === 0);

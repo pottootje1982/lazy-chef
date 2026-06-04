@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/app/actions";
+import { RECIPE_CATEGORIES } from "@/lib/categories";
 
 export type RecipeFormValues = {
   title: string;
@@ -16,6 +17,7 @@ export type RecipeFormValues = {
   ingredients: string[];
   instructions: string[];
   tags: string[];
+  categories: string[];
 };
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -192,6 +194,24 @@ export default function RecipeForm({
           placeholder="Describe this step…"
           multiline
         />
+      </div>
+
+      <div className="card p-5">
+        <span className="label">Categories</span>
+        <div className="flex flex-wrap gap-x-5 gap-y-2">
+          {RECIPE_CATEGORIES.map((c) => (
+            <label key={c.key} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                name="categories"
+                value={c.key}
+                defaultChecked={initial.categories.includes(c.key)}
+                className="h-4 w-4 rounded border-stone-300"
+              />
+              {c.label}
+            </label>
+          ))}
+        </div>
       </div>
 
       <div className="card p-5">

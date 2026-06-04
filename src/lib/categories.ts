@@ -3,6 +3,20 @@
 // Paprika import, so newly imported recipes are categorized immediately.
 // Approximate by design and easily re-tuned.
 
+// The canonical category set — shared by the filter chips, the recipe form, and
+// the detail view. The classifier below only ever emits these keys.
+export const RECIPE_CATEGORIES = [
+  { key: "vegetarian", label: "Vegetarian" },
+  { key: "vegan", label: "Vegan" },
+  { key: "fish", label: "Fish" },
+  { key: "meat", label: "Meat" },
+  { key: "dessert", label: "Dessert" },
+] as const;
+export const CATEGORY_KEYS = RECIPE_CATEGORIES.map((c) => c.key) as readonly string[];
+export const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  RECIPE_CATEGORIES.map((c) => [c.key, c.label]),
+);
+
 const FISH = [
   "fish", "salmon", "cod", "tuna", "prawn", "shrimp", "hake", "mackerel", "trout",
   "tilapia", "sea bass", "seabass", "crab", "clam", "squid", "haddock", "anchov",

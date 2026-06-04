@@ -12,6 +12,7 @@ export const recipeSchema = z.object({
   ingredients: z.array(z.string().trim().min(1)).default([]),
   instructions: z.array(z.string().trim().min(1)).default([]),
   tags: z.array(z.string().trim().min(1)).default([]),
+  categories: z.array(z.string().trim().min(1)).default([]),
 });
 
 export type RecipeInput = z.infer<typeof recipeSchema>;

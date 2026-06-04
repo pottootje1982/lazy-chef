@@ -2,15 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { RECIPE_CATEGORIES as CATEGORIES } from "@/lib/categories";
 import RecipeGrid from "./RecipeGrid";
-
-const CATEGORIES = [
-  { key: "vegetarian", label: "Vegetarian" },
-  { key: "vegan", label: "Vegan" },
-  { key: "fish", label: "Fish" },
-  { key: "meat", label: "Meat" },
-  { key: "dessert", label: "Dessert" },
-] as const;
 
 export default async function RecipesPage({
   searchParams,
