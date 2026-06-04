@@ -88,7 +88,7 @@ export default async function RecipeDetailPage({
         <img
           src={recipe.imageUrl}
           alt={recipe.title}
-          className="mt-6 max-h-96 w-full rounded-xl object-cover"
+          className="mt-6 max-h-96 max-w-full rounded-xl"
         />
       ) : null}
 
