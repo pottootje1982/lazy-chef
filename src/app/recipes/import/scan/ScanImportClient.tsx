@@ -198,23 +198,25 @@ export default function ScanImportClient() {
   }
 
   // ── Per-region extraction (memoized; reuses cached OCR words) ──────────────
-  function wordsForType(type: RegionType): OcrWord[] {
-    if (!ocr) return [];
-    const seen = new Set<OcrWord>();
-    for (const r of rects.filter((r) => r.type === type)) {
-      for (const w of wordsInRect(ocr.words, r)) seen.add(w);
-    }
-    return [...seen];
-  }
+  // Each rectangle is read independently in draw order, so multiple boxes (e.g.
+  // directions split across columns) stay in reading order instead of being
+  // interleaved by a single global top-to-bottom sort.
   const preview = useMemo(
-    () => ({
-      title: joinAsTitle(wordsForType("TITLE")),
-      ingredients: linesFromWords(wordsForType("INGREDIENTS")),
-      // Directions from a photo become a single step — line breaks in the
-      // image are layout, not separate steps.
-      directions: joinAsParagraph(wordsForType("DIRECTIONS")),
-      hasImage: rects.some((r) => r.type === "IMAGE"),
-    }),
+    () => {
+      const wordsIn = (r: DrawnRect) => (ocr ? wordsInRect(ocr.words, r) : []);
+      const ofType = (t: RegionType) => rects.filter((r) => r.type === t);
+      return {
+        title: joinAsTitle(ofType("TITLE").flatMap(wordsIn)),
+        // One box per ingredient column → concatenate each column's lines.
+        ingredients: ofType("INGREDIENTS").flatMap((r) => linesFromWords(wordsIn(r))),
+        // Directions become a single step; columns are joined in the order drawn.
+        directions: ofType("DIRECTIONS")
+          .map((r) => joinAsParagraph(wordsIn(r)))
+          .filter(Boolean)
+          .join(" "),
+        hasImage: rects.some((r) => r.type === "IMAGE"),
+      };
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [ocr, rects],
   );
@@ -336,7 +338,8 @@ export default function ScanImportClient() {
             {ocrLoading ? <span className="text-xs text-stone-400">Reading text…</span> : null}
           </div>
           <p className="-mt-2 text-xs text-stone-400">
-            Drag on the image to draw a box. Drag a box&apos;s corner handles to resize it, or ✕ to remove it.
+            Drag on the image to draw a box; drag the corner handles to resize, or ✕ to remove.
+            You can draw several Ingredients or Directions boxes — handy when they span columns.
           </p>
 
           {/* Image + draw overlay */}
