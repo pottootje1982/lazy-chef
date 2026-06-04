@@ -8,6 +8,7 @@ import { CATEGORY_LABEL } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
 import RecipeSelectToggle from "./RecipeSelectToggle";
+import RecipeImage from "./RecipeImage";
 
 export default async function RecipeDetailPage({
   params,
@@ -84,14 +85,7 @@ export default async function RecipeDetailPage({
         </div>
       </div>
 
-      {recipe.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={recipe.imageUrl}
-          alt={recipe.title}
-          className="mt-6 max-h-96 w-full rounded-xl object-cover"
-        />
-      ) : null}
+      {recipe.imageUrl ? <RecipeImage src={recipe.imageUrl} alt={recipe.title} /> : null}
 
       {recipe.sourceImageUrl ? (
         <p className="mt-2 text-sm text-stone-400">
