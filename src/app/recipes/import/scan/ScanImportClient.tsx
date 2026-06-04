@@ -12,7 +12,7 @@ import {
   type Rect,
 } from "@/lib/ocr-layout";
 
-type RegionType = "TITLE" | "INGREDIENTS" | "DIRECTIONS" | "IMAGE";
+type RegionType = "TITLE" | "SERVINGS" | "INGREDIENTS" | "DIRECTIONS" | "IMAGE";
 type DrawnRect = Rect & { id: number; type: RegionType };
 type OcrResult = { width: number; height: number; words: OcrWord[] };
 
@@ -25,6 +25,7 @@ const REGIONS: {
   single: boolean;
 }[] = [
   { type: "TITLE", label: "Title", border: "border-blue-500", bg: "bg-blue-500/10", chip: "bg-blue-600", single: true },
+  { type: "SERVINGS", label: "Servings", border: "border-rose-500", bg: "bg-rose-500/10", chip: "bg-rose-600", single: true },
   { type: "INGREDIENTS", label: "Ingredients", border: "border-emerald-500", bg: "bg-emerald-500/10", chip: "bg-emerald-600", single: false },
   { type: "DIRECTIONS", label: "Directions", border: "border-amber-500", bg: "bg-amber-500/10", chip: "bg-amber-600", single: false },
   { type: "IMAGE", label: "Image", border: "border-purple-500", bg: "bg-purple-500/10", chip: "bg-purple-600", single: true },
@@ -247,6 +248,7 @@ export default function ScanImportClient() {
         .filter(Boolean);
       return {
         title: joinAsTitle(ofType("TITLE").flatMap(wordsIn)),
+        servings: joinAsTitle(ofType("SERVINGS").flatMap(wordsIn)),
         // One box per ingredient column → concatenate each column's lines.
         ingredients: ofType("INGREDIENTS").flatMap((r) => linesFromWords(wordsIn(r))),
         directionSteps,
@@ -295,7 +297,7 @@ export default function ScanImportClient() {
         imageUrl,
         sourceImageUrl,
         sourceUrl: "",
-        servings: "",
+        servings: preview.servings,
         prepTime: "",
         cookTime: "",
         ingredients: preview.ingredients,
@@ -340,7 +342,11 @@ export default function ScanImportClient() {
 
   const { sx, sy } = scale();
   const hasAnything =
-    preview.title || preview.ingredients.length || preview.directions || preview.hasImage;
+    preview.title ||
+    preview.servings ||
+    preview.ingredients.length ||
+    preview.directions ||
+    preview.hasImage;
 
   return (
     <div className="space-y-5">
@@ -461,6 +467,9 @@ export default function ScanImportClient() {
             <h2 className="text-sm font-semibold text-stone-700">Preview</h2>
             <RegionPreview label="Title" empty={!preview.title}>
               {preview.title}
+            </RegionPreview>
+            <RegionPreview label="Servings" empty={!preview.servings}>
+              {preview.servings}
             </RegionPreview>
             <RegionPreview label="Ingredients" empty={preview.ingredients.length === 0}>
               <ul className="list-disc pl-5">
