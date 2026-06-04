@@ -36,6 +36,36 @@ const REGION = Object.fromEntries(REGIONS.map((r) => [r.type, r])) as Record<
 
 const MIN_DRAG = 8; // ignore tiny accidental drags (display px)
 
+// Vercel caps a serverless request body at ~4.5 MB, so a full phone photo would
+// fail in production. Downscale to a bounded JPEG in the browser before upload.
+// The SAME resized image is used for preview, OCR, and crop, so all coordinate
+// spaces (word boxes, crop rect) match what's displayed.
+const MAX_UPLOAD_DIM = 2200; // longest side, px
+async function downscaleForUpload(file: File): Promise<File> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    return file; // can't decode (e.g. HEIC) — fall back to the original
+  }
+  const scale = Math.min(1, MAX_UPLOAD_DIM / Math.max(bitmap.width, bitmap.height));
+  const w = Math.round(bitmap.width * scale);
+  const h = Math.round(bitmap.height * scale);
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bitmap.close();
+    return file;
+  }
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.82));
+  if (!blob) return file;
+  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+}
+
 // Corner resize handles. Each drags one corner while the opposite corner stays
 // anchored. `w`/`n` flag whether this corner controls the west/north edge.
 const CORNERS: { k: string; west: boolean; north: boolean; pos: React.CSSProperties; cursor: string }[] = [
@@ -82,11 +112,15 @@ export default function ScanImportClient() {
     setDrag(null);
   }
 
-  function onChooseFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (!f) return;
+  async function onChooseFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const original = e.target.files?.[0];
+    if (!original) return;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     reset();
+    setOcrLoading(true); // covers the brief resize before OCR starts
+    // Shrink to a bounded JPEG so the upload stays under the serverless body
+    // limit; the same resized file feeds the preview, OCR, and crop.
+    const f = await downscaleForUpload(original);
     setFile(f);
     setPreviewUrl(URL.createObjectURL(f));
     void runOcr(f);
