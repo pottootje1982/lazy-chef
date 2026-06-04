@@ -68,6 +68,26 @@ async function downscaleForUpload(file: File): Promise<File> {
   return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
 }
 
+// Rotate an image file by ±90° (the result feeds preview, OCR, and crop alike).
+async function rotateFile(file: File, deg: 90 | -90): Promise<File> {
+  const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+  const canvas = document.createElement("canvas");
+  canvas.width = bmp.height; // 90° turn swaps the dimensions
+  canvas.height = bmp.width;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    bmp.close();
+    return file;
+  }
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(bmp, -bmp.width / 2, -bmp.height / 2);
+  bmp.close();
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.85));
+  if (!blob) return file;
+  return new File([blob], file.name, { type: "image/jpeg" });
+}
+
 // Corner resize handles. Each drags one corner while the opposite corner stays
 // anchored. `w`/`n` flag whether this corner controls the west/north edge.
 const CORNERS: { k: string; west: boolean; north: boolean; pos: React.CSSProperties; cursor: string }[] = [
@@ -211,6 +231,24 @@ export default function ScanImportClient() {
     setRects([]); // boxes are page-specific
     setOcrLoading(true);
     await usePdfPage(pdfDoc, pageNum);
+  }
+
+  // Rotate the current image (photo or rendered PDF page) and re-OCR — word
+  // boxes and the crop depend on orientation, so drawn boxes are cleared.
+  async function rotate(deg: 90 | -90) {
+    if (!file || ocrLoading) return;
+    setOcrLoading(true);
+    setRects([]);
+    try {
+      const rotated = await rotateFile(file, deg);
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      setFile(rotated);
+      setPreviewUrl(URL.createObjectURL(rotated));
+      void runOcr(rotated);
+    } catch {
+      setError("Couldn't rotate that image.");
+      setOcrLoading(false);
+    }
   }
 
   // ── Coordinate transforms (display CSS px ↔ natural image px) ─────────────
@@ -488,11 +526,32 @@ export default function ScanImportClient() {
                 {r.label}
               </button>
             ))}
+            <span className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => rotate(-90)}
+                disabled={ocrLoading}
+                className="rounded border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-100 disabled:opacity-40"
+                aria-label="Rotate left"
+                title="Rotate left"
+              >
+                ↺
+              </button>
+              <button
+                onClick={() => rotate(90)}
+                disabled={ocrLoading}
+                className="rounded border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-100 disabled:opacity-40"
+                aria-label="Rotate right"
+                title="Rotate right"
+              >
+                ↻
+              </button>
+            </span>
             {ocrLoading ? <span className="text-xs text-stone-400">Reading text…</span> : null}
           </div>
           <p className="-mt-2 text-xs text-stone-400">
             Drag on the image to draw a box; drag the corner handles to resize, or ✕ to remove.
             You can draw several Ingredients or Directions boxes — handy when they span columns.
+            Use ↺ ↻ to rotate.
           </p>
 
           {/* Image + draw overlay */}
