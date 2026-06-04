@@ -13,6 +13,7 @@ export const recipeSchema = z.object({
   instructions: z.array(z.string().trim().min(1)).default([]),
   tags: z.array(z.string().trim().min(1)).default([]),
   categories: z.array(z.string().trim().min(1)).default([]),
+  origin: z.enum(["manual", "url", "scan", "paprika"]).optional().or(z.literal("")),
 });
 
 export type RecipeInput = z.infer<typeof recipeSchema>;

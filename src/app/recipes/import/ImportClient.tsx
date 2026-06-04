@@ -42,6 +42,7 @@ export default function ImportClient() {
         tags: r.tags ?? [],
         // Suggest categories from the scraped title + ingredients (editable).
         categories: classify(r.title ?? "", r.ingredients ?? []),
+        origin: "url",
       };
       setScraped(values);
       setPartial(values.ingredients.length === 0 && values.instructions.length === 0);

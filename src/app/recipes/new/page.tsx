@@ -16,6 +16,7 @@ const EMPTY = {
   instructions: [],
   tags: [],
   categories: [],
+  origin: "manual",
 };
 
 export default async function NewRecipePage() {

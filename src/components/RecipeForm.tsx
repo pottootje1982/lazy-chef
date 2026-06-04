@@ -18,6 +18,7 @@ export type RecipeFormValues = {
   instructions: string[];
   tags: string[];
   categories: string[];
+  origin: string;
 };
 
 type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -111,6 +112,8 @@ export default function RecipeForm({
     <form action={formAction} className="space-y-6">
       {/* Carried through from the photo-scan importer; not user-editable. */}
       <input type="hidden" name="sourceImageUrl" defaultValue={initial.sourceImageUrl} />
+      {/* Records how the recipe was created (manual/url/scan/paprika). */}
+      <input type="hidden" name="origin" defaultValue={initial.origin} />
       {state?.error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {state.error}

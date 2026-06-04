@@ -32,6 +32,7 @@ function parseForm(formData: FormData) {
     instructions: list("instructions"),
     tags: list("tags"),
     categories: list("categories"),
+    origin: clean(formData.get("origin")) ?? "",
   });
 }
 
@@ -70,6 +71,7 @@ export async function createRecipe(
       instructions: data.instructions,
       tags: data.tags,
       categories: data.categories,
+      origin: data.origin || null,
     },
   });
 
@@ -111,6 +113,7 @@ export async function updateRecipe(
       instructions: data.instructions,
       tags: data.tags,
       categories: data.categories,
+      origin: data.origin || null,
     },
   });
 

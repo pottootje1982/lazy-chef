@@ -118,6 +118,14 @@ export default async function RecipeDetailPage({
         ) : null}
       </div>
 
+      {recipe.origin === "scan" ? (
+        <div className="mt-4">
+          <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
+            📷 Scanned
+          </span>
+        </div>
+      ) : null}
+
       {recipe.categories.length ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {recipe.categories.map((c) => (

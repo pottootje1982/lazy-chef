@@ -37,6 +37,7 @@ export default async function EditRecipePage({
           instructions: recipe.instructions,
           tags: recipe.tags,
           categories: recipe.categories,
+          origin: recipe.origin ?? "",
         }}
       />
     </div>

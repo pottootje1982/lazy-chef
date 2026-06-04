@@ -16,9 +16,12 @@ export type RecipeCard = {
   description: string | null;
   imageUrl: string | null;
   tags: string[];
+  origin: string | null;
   createdAt: string; // ISO
   lastOrderedAt: string | null; // ISO or null
 };
+
+const SCANNED_CHIP = "rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600";
 
 export type GroceryListCard = {
   id: string;
@@ -237,6 +240,11 @@ export default function RecipeGrid({
                   <Link href={`/recipes/${recipe.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:text-brand-600">
                     {recipe.title}
                   </Link>
+                  {recipe.origin === "scan" ? (
+                    <span className="flex-none" title="Imported by scan">
+                      📷
+                    </span>
+                  ) : null}
                   <span className="w-24 flex-none text-right text-xs text-stone-500">
                     {fmtDate(recipe.createdAt)}
                   </span>
@@ -285,8 +293,11 @@ export default function RecipeGrid({
                     {recipe.description ? (
                       <p className="mt-1 line-clamp-2 text-sm text-stone-500">{recipe.description}</p>
                     ) : null}
-                    {recipe.tags.length ? (
+                    {recipe.origin === "scan" || recipe.tags.length ? (
                       <div className="mt-3 flex flex-wrap gap-1">
+                        {recipe.origin === "scan" ? (
+                          <span className={SCANNED_CHIP}>📷 Scanned</span>
+                        ) : null}
                         {recipe.tags.slice(0, 3).map((tag) => (
                           <span
                             key={tag}

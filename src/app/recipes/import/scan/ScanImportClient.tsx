@@ -411,6 +411,7 @@ export default function ScanImportClient() {
         tags: [],
         // Suggested from the extracted title + ingredients (editable on the form).
         categories: classify(preview.title, preview.ingredients),
+        origin: "scan",
       };
       setValues(next);
     } catch {

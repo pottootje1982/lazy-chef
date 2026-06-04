@@ -65,6 +65,7 @@ export async function POST(req: Request) {
           instructions: mapped.instructions,
           tags: mapped.tags,
           categories: classify(mapped.title, mapped.ingredients),
+          origin: "paprika",
         },
       });
       imported++;
