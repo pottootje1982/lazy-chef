@@ -19,6 +19,17 @@ export const importSchema = z.object({
   url: z.string().trim().url("Enter a valid URL"),
 });
 
+// Crop rectangle (natural image pixels) posted by the scan importer when the
+// user marks an "Image" region to store as the recipe photo.
+export const scanCropSchema = z
+  .object({
+    x: z.coerce.number().int().nonnegative(),
+    y: z.coerce.number().int().nonnegative(),
+    w: z.coerce.number().int(),
+    h: z.coerce.number().int(),
+  })
+  .refine((d) => d.w > 0 && d.h > 0, { message: "Crop region must have a positive size." });
+
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import ImportClient from "./ImportClient";
@@ -14,6 +15,17 @@ export default async function ImportPage() {
         before saving.
       </p>
       <ImportClient />
+
+      <div className="mt-6 rounded-lg border border-stone-200 bg-stone-50 p-4">
+        <h2 className="text-sm font-semibold text-stone-700">No link? Scan a photo</h2>
+        <p className="mt-1 text-sm text-stone-500">
+          Snap a picture of a cookbook page or recipe card and mark the title, ingredients,
+          directions, and image — we&apos;ll read the text with OCR.
+        </p>
+        <Link href="/recipes/import/scan" className="btn-secondary mt-3 inline-block">
+          📷 Scan a photo
+        </Link>
+      </div>
     </div>
   );
 }

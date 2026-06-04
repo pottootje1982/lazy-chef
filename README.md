@@ -14,6 +14,7 @@ translation.
 - **Tailwind CSS**
 - **cheerio** for scraping JSON-LD recipe data
 - **picnic-api** for grocery product search; **Google Cloud Translation** for EN→NL
+- **Google Cloud Vision** (OCR) + **Google Cloud Storage** + **sharp** for the photo-scan importer
 
 ## Setup
 
@@ -41,6 +42,11 @@ Requires **Node ≥ 18.18** (an `.nvmrc` pins 22.17.1 — run `nvm use`).
      enabled (used to translate ingredients EN→NL). Without it, the original English
      term is used as the search query.
 
+   For **importing a recipe by photo (OCR)**, set `GOOGLE_VISION_API_KEY`, `GCS_BUCKET`,
+   and `GCS_SA_KEY` — see [Importing by photo (OCR)](#importing-by-photo-ocr) for how to
+   create them. Without them, the scan importer degrades gracefully (a clear
+   "not configured" message; everything else keeps working).
+
 3. **Install & sync the database schema**:
    ```bash
    npm install
@@ -58,6 +64,7 @@ Requires **Node ≥ 18.18** (an `.nvmrc` pins 22.17.1 — run `nvm use`).
 - `npm run dev` — start the dev server
 - `npm run db:push` — push the Prisma schema to the database
 - `npm run db:studio` — browse data in Prisma Studio
+- `npm run check:gcs` — upload a 1×1 test image to verify `GCS_BUCKET` + `GCS_SA_KEY` work
 - `npm run build` / `npm start` — production build & serve
 
 ## How importing works
@@ -67,6 +74,64 @@ Requires **Node ≥ 18.18** (an `.nvmrc` pins 22.17.1 — run `nvm use`).
 `@graph`, arrays, `HowToStep`/`HowToSection`, ISO-8601 durations, etc.). If no structured
 data is found it falls back to OpenGraph metadata so you can finish the recipe by hand.
 Nothing is saved until you review and submit.
+
+## Importing by photo (OCR)
+
+**Import → 📷 Scan a photo** lets you turn a photo of a cookbook page or recipe card into a
+recipe. Upload/snap a photo, draw boxes around the **title**, **ingredients**, **directions**,
+and (optionally) the **image**; the text is read with **Google Cloud Vision**, and the box you
+mark as *Image* is cropped and stored in **Google Cloud Storage**. The result prefills the
+normal recipe form for review before saving. The full scan is OCR'd inline and never stored —
+only the cropped image is uploaded.
+
+This needs three environment variables, all created in the **same Google Cloud project** as
+your Translation key.
+
+### `GOOGLE_VISION_API_KEY`
+
+1. Console → **APIs & Services → Library** → search **Cloud Vision API** → **Enable**.
+2. **APIs & Services → Credentials → + Create credentials → API key**. Copy the key.
+   (You can reuse your Translate key's value here as long as the Vision API is enabled on
+   that project.)
+
+### `GCS_BUCKET` — create a bucket (the value is the bucket name)
+
+1. Console → **☰ → Cloud Storage → Buckets → + Create**
+   (<https://console.cloud.google.com/storage/browser>).
+2. **Name** it something globally-unique, e.g. `recipe-manager-scans-<you>` → that string is
+   your `GCS_BUCKET` (just the name, **not** a URL).
+3. **Location**: a Region near you (e.g. `europe-west4`). Storage class: Standard.
+4. **Access control**: choose **Uniform**.
+5. **Public access prevention**: turn **off** (the cropped images must be publicly viewable).
+6. Create.
+7. Open the bucket → **Permissions → + Grant access** → principal `allUsers`, role
+   **Storage Object Viewer** → Save → allow public access.
+
+### `GCS_SA_KEY` — a service-account key, base64-encoded
+
+1. Console → **☰ → IAM & Admin → Service Accounts → + Create service account**
+   (<https://console.cloud.google.com/iam-admin/serviceaccounts>). Name e.g. `recipe-uploader`.
+2. Grant it the **Storage Object Admin** role (project-wide, or scoped to just the bucket via
+   the bucket's **Permissions** tab).
+3. Open the service account → **Keys → Add key → Create new key → JSON**. A `.json` file
+   downloads.
+4. Base64-encode the whole file into a single line and copy it (macOS):
+   ```bash
+   base64 -i ~/Downloads/recipe-uploader-*.json | tr -d '\n' | pbcopy
+   ```
+   Paste the result as `GCS_SA_KEY`. (We base64 the entire file because the `private_key`
+   inside it contains newlines that don't survive a raw paste into an env var.)
+
+### Where the values go
+
+- **Local**: add all three to `.env`.
+- **Vercel**: Project → **Settings → Environment Variables** → add all three for Production +
+  Preview, then redeploy.
+
+**Sanity check:** `GCS_BUCKET` is a short name; `GCS_SA_KEY` is a long single-line base64
+blob that decodes to JSON containing `"type": "service_account"`. If granting `allUsers`
+access is blocked, your account has a public-access org policy (common on work accounts, not
+on personal projects).
 
 ## Linking ingredients to Picnic products
 
