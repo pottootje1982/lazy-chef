@@ -108,7 +108,17 @@ export default function GroceryListEditor({
           </span>
         </div>
         <button
-          onClick={() => deleteList(list.id)}
+          onClick={() => {
+            if (
+              confirm(
+                `Delete "${name}" and all ${list.items.length} product${
+                  list.items.length === 1 ? "" : "s"
+                }? This can't be undone.`,
+              )
+            ) {
+              deleteList(list.id);
+            }
+          }}
           className="flex-none text-xs text-stone-400 hover:text-red-600"
         >
           Delete list

@@ -95,6 +95,11 @@ export default function ScanImportClient() {
   const [saveOriginal, setSaveOriginal] = useState(true);
   const [stepsPerBox, setStepsPerBox] = useState(false);
   const [values, setValues] = useState<RecipeFormValues | null>(null);
+  // Loaded PDF (when a PDF was uploaded) so the user can switch pages.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pdfDoc, setPdfDoc] = useState<any>(null);
+  const [pdfPageCount, setPdfPageCount] = useState(0);
+  const [pdfPage, setPdfPage] = useState(1);
 
   const imgRef = useRef<HTMLImageElement>(null);
   const idRef = useRef(0);
@@ -113,6 +118,9 @@ export default function ScanImportClient() {
     setImageNote(null);
     setValues(null);
     setDrag(null);
+    setPdfDoc(null);
+    setPdfPageCount(0);
+    setPdfPage(1);
   }
 
   async function onChooseFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -149,6 +157,60 @@ export default function ScanImportClient() {
     } finally {
       setOcrLoading(false);
     }
+  }
+
+  // ── PDF upload: render a page to an image, then reuse the photo pipeline ────
+  async function onChoosePdf(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    reset();
+    setOcrLoading(true);
+    try {
+      const pdfjs = await import("pdfjs-dist");
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+      const data = await file.arrayBuffer();
+      const doc = await pdfjs.getDocument({ data }).promise;
+      setPdfDoc(doc);
+      setPdfPageCount(doc.numPages);
+      setPdfPage(1);
+      await usePdfPage(doc, 1);
+    } catch {
+      setError("Couldn't read that PDF — try a different file or take a photo instead.");
+      setOcrLoading(false);
+    }
+  }
+
+  // Render one PDF page to a bounded JPEG and feed it through the image pipeline.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function usePdfPage(doc: any, pageNum: number) {
+    const page = await doc.getPage(pageNum);
+    const base = page.getViewport({ scale: 1 });
+    const scale = Math.min(3.5, 2200 / base.width); // ~2200px wide for OCR
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#fff"; // avoid black behind transparent PDFs in the JPEG
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.85));
+    if (!blob) throw new Error("render failed");
+    const rendered = new File([blob], `recipe-p${pageNum}.jpg`, { type: "image/jpeg" });
+    const f = await downscaleForUpload(rendered);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setFile(f);
+    setPreviewUrl(URL.createObjectURL(f));
+    void runOcr(f);
+  }
+
+  async function changePdfPage(pageNum: number) {
+    if (!pdfDoc || pageNum < 1 || pageNum > pdfPageCount || pageNum === pdfPage) return;
+    setPdfPage(pageNum);
+    setRects([]); // boxes are page-specific
+    setOcrLoading(true);
+    await usePdfPage(pdfDoc, pageNum);
   }
 
   // ── Coordinate transforms (display CSS px ↔ natural image px) ─────────────
@@ -373,7 +435,36 @@ export default function ScanImportClient() {
           🖼 Choose from library
           <input type="file" accept="image/*" onChange={onChooseFile} className="sr-only" />
         </label>
+        <label className="btn-secondary inline-block cursor-pointer">
+          📄 Upload PDF
+          <input type="file" accept="application/pdf" onChange={onChoosePdf} className="sr-only" />
+        </label>
       </div>
+
+      {pdfPageCount > 1 ? (
+        <div className="flex items-center gap-3 text-sm text-stone-600">
+          <span>PDF page</span>
+          <button
+            onClick={() => changePdfPage(pdfPage - 1)}
+            disabled={pdfPage <= 1}
+            className="rounded border border-stone-200 px-2 py-0.5 hover:bg-stone-100 disabled:opacity-40"
+            aria-label="Previous page"
+          >
+            ‹
+          </button>
+          <span className="tabular-nums">
+            {pdfPage} / {pdfPageCount}
+          </span>
+          <button
+            onClick={() => changePdfPage(pdfPage + 1)}
+            disabled={pdfPage >= pdfPageCount}
+            className="rounded border border-stone-200 px-2 py-0.5 hover:bg-stone-100 disabled:opacity-40"
+            aria-label="Next page"
+          >
+            ›
+          </button>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">

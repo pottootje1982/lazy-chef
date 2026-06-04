@@ -13,10 +13,11 @@ export default async function ScanImportPage() {
       <Link href="/recipes/import" className="text-sm text-stone-500 hover:text-stone-900">
         ← Back to import
       </Link>
-      <h1 className="mb-2 mt-3 text-2xl font-bold">Scan a recipe photo</h1>
+      <h1 className="mb-2 mt-3 text-2xl font-bold">Scan a recipe</h1>
       <p className="mb-6 text-sm text-stone-500">
-        Upload or snap a photo of a recipe, then draw boxes around the title, ingredients,
-        directions, and image. We&apos;ll read the text with OCR and fill in the form for you.
+        Upload or snap a photo of a recipe — or upload a PDF — then draw boxes around the title,
+        ingredients, directions, and image. We&apos;ll read the text with OCR and fill in the form
+        for you.
       </p>
 
       {isGuest ? (
