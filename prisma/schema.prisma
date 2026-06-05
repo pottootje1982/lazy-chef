@@ -87,6 +87,7 @@ model Recipe {
   sourceImageUrl String? // full original photo from the OCR scan importer (GCS)
   sourceUrl    String?
   origin       String? // how the recipe was created: manual | url | scan | paprika
+  quantityOverrides Json? // per-ingredient order qty overrides: { [ingredientKey]: number }
   servings     String?
   prepTime     String?
   cookTime     String?

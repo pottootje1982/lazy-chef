@@ -84,6 +84,8 @@ export async function aggregateOrder(
 
   // Recipes → ingredients → mapped products.
   for (const recipe of recipes) {
+    // Optional per-ingredient quantity overrides set on the recipe detail page.
+    const overrides = (recipe.quantityOverrides ?? {}) as Record<string, number>;
     const rows = recipe.ingredients.map((raw): OrderRow => {
       const key = normalizeIngredient(raw);
       if (unavailableSet.has(key) && !unavailable.has(key)) unavailable.set(key, raw.trim());
@@ -92,7 +94,8 @@ export async function aggregateOrder(
         unmappedCount++;
         return { label: raw, mappedName: null, unmapped: true };
       }
-      const n = parseCount(raw);
+      const ov = overrides[key];
+      const n = typeof ov === "number" ? ov : parseCount(raw);
       const existing = cart.get(m.picnicId);
       if (existing) {
         existing.quantity += n;

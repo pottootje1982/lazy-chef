@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
-import { normalizeIngredient } from "@/lib/translate";
+import { normalizeIngredient, parseCount } from "@/lib/translate";
 import { isLikelyEnglish } from "@/lib/nl-dict";
 import { CATEGORY_LABEL } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
@@ -35,14 +35,18 @@ export default async function RecipeDetailPage({
   const isGuest = Boolean(session.user.isGuest);
   const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
   const unavailableSet = new Set(user?.unavailableIngredients ?? []);
+  const overrides = (recipe.quantityOverrides ?? {}) as Record<string, number>;
 
   const ingredientItems: IngredientItem[] = recipe.ingredients.map((raw) => {
     const key = normalizeIngredient(raw);
     const m = byKey.get(key);
+    const defaultQuantity = parseCount(raw);
     return {
       raw,
       ingredientKey: key,
       unavailable: unavailableSet.has(key),
+      defaultQuantity,
+      quantity: typeof overrides[key] === "number" ? overrides[key] : defaultQuantity,
       product: m
         ? {
             mappingId: m.id,
@@ -171,6 +175,7 @@ export default async function RecipeDetailPage({
             picnicLinked={picnicLinked}
             readOnly={isGuest}
             lang={recipeLang}
+            recipeId={recipe.id}
           />
         </section>
 

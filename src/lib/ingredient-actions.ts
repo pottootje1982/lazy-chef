@@ -57,6 +57,27 @@ export async function markIngredientAvailable(key: string): Promise<void> {
   });
 }
 
+// Set a per-recipe order-quantity override for one ingredient (by normalized
+// key). Overrides what parseCount derives from the line — e.g. "1.5 kg spinazie"
+// → order 3 bags. Optimistic on the client; next load reads the DB.
+export async function setIngredientQuantity(
+  recipeId: string,
+  ingredientKey: string,
+  quantity: number,
+): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !recipeId || !ingredientKey) return;
+  const recipe = await prisma.recipe.findFirst({
+    where: { id: recipeId, userId },
+    select: { quantityOverrides: true },
+  });
+  if (!recipe) return;
+  const q = Math.max(1, Math.min(99, Math.floor(quantity)));
+  const overrides = { ...((recipe.quantityOverrides as Record<string, number> | null) ?? {}) };
+  overrides[ingredientKey] = q;
+  await prisma.recipe.update({ where: { id: recipeId }, data: { quantityOverrides: overrides } });
+}
+
 // Remove the product mapping for an ingredient (by normalized key), so it shows
 // as unlinked again. Optimistic on the client; next load reads the DB.
 export async function unlinkIngredient(key: string): Promise<void> {

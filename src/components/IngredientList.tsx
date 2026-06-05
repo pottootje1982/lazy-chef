@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
-import { markIngredientUnavailable, markIngredientAvailable } from "@/lib/ingredient-actions";
+import {
+  markIngredientUnavailable,
+  markIngredientAvailable,
+  setIngredientQuantity,
+} from "@/lib/ingredient-actions";
 
 export type LinkedProduct = {
   mappingId: string;
@@ -19,6 +23,8 @@ export type IngredientItem = {
   ingredientKey: string; // normalized key, used to flag (un)available
   product: LinkedProduct | null;
   unavailable: boolean;
+  quantity: number; // effective order qty (override ?? parsed)
+  defaultQuantity: number; // parsed from the line
 };
 
 function euro(cents: number | null): string | null {
@@ -26,16 +32,65 @@ function euro(cents: number | null): string | null {
   return "€" + (cents / 100).toFixed(2).replace(".", ",");
 }
 
+// Per-ingredient order quantity, persisted as a per-recipe override.
+function QtyStepper({
+  recipeId,
+  ingredientKey,
+  initial,
+  defaultQuantity,
+}: {
+  recipeId: string;
+  ingredientKey: string;
+  initial: number;
+  defaultQuantity: number;
+}) {
+  const [qty, setQty] = useState(initial);
+  function change(delta: number) {
+    const next = Math.max(1, Math.min(99, qty + delta));
+    if (next === qty) return;
+    setQty(next);
+    void setIngredientQuantity(recipeId, ingredientKey, next).catch(() => {});
+  }
+  return (
+    <div className="flex flex-none flex-col items-center">
+      <div className="flex items-center gap-1">
+        <button
+          onClick={() => change(-1)}
+          disabled={qty <= 1}
+          className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+          aria-label="Decrease quantity"
+        >
+          −
+        </button>
+        <span className="w-5 text-center text-sm tabular-nums">{qty}</span>
+        <button
+          onClick={() => change(1)}
+          disabled={qty >= 99}
+          className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+          aria-label="Increase quantity"
+        >
+          +
+        </button>
+      </div>
+      <span className="mt-0.5 text-[10px] text-stone-400">
+        {qty === defaultQuantity ? "qty" : `recipe: ${defaultQuantity}`}
+      </span>
+    </div>
+  );
+}
+
 function Row({
   item,
   picnicLinked,
   readOnly,
   lang,
+  recipeId,
 }: {
   item: IngredientItem;
   picnicLinked: boolean;
   readOnly: boolean;
   lang?: string;
+  recipeId: string;
 }) {
   const [product, setProduct] = useState<LinkedProduct | null>(item.product);
   const [open, setOpen] = useState(false);
@@ -138,17 +193,25 @@ function Row({
             </p>
           </div>
           {readOnly ? null : (
-            <div className="flex flex-none gap-2">
-              <button
-                onClick={() => setOpen(true)}
-                className="text-xs text-stone-500 hover:text-brand-600"
-              >
-                Change
-              </button>
-              <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
-                Unlink
-              </button>
-            </div>
+            <>
+              <QtyStepper
+                recipeId={recipeId}
+                ingredientKey={item.ingredientKey}
+                initial={item.quantity}
+                defaultQuantity={item.defaultQuantity}
+              />
+              <div className="flex flex-none flex-col gap-1">
+                <button
+                  onClick={() => setOpen(true)}
+                  className="text-xs text-stone-500 hover:text-brand-600"
+                >
+                  Change
+                </button>
+                <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
+                  Unlink
+                </button>
+              </div>
+            </>
           )}
         </div>
       ) : null}
@@ -200,11 +263,13 @@ export default function IngredientList({
   picnicLinked,
   readOnly = false,
   lang,
+  recipeId,
 }: {
   items: IngredientItem[];
   picnicLinked: boolean;
   readOnly?: boolean;
   lang?: string;
+  recipeId: string;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-stone-400">No ingredients listed.</p>;
@@ -212,7 +277,14 @@ export default function IngredientList({
   return (
     <ul className="space-y-2">
       {items.map((item, i) => (
-        <Row key={i} item={item} picnicLinked={picnicLinked} readOnly={readOnly} lang={lang} />
+        <Row
+          key={i}
+          item={item}
+          picnicLinked={picnicLinked}
+          readOnly={readOnly}
+          lang={lang}
+          recipeId={recipeId}
+        />
       ))}
     </ul>
   );
