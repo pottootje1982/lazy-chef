@@ -30,10 +30,12 @@ function Row({
   item,
   picnicLinked,
   readOnly,
+  lang,
 }: {
   item: IngredientItem;
   picnicLinked: boolean;
   readOnly: boolean;
+  lang?: string;
 }) {
   const [product, setProduct] = useState<LinkedProduct | null>(item.product);
   const [open, setOpen] = useState(false);
@@ -164,6 +166,7 @@ function Row({
           <PicnicProductSearch
             ingredient={item.raw}
             autoSearch
+            lang={lang}
             action={{
               label: "Select",
               onPick: async (p, query) => {
@@ -196,10 +199,12 @@ export default function IngredientList({
   items,
   picnicLinked,
   readOnly = false,
+  lang,
 }: {
   items: IngredientItem[];
   picnicLinked: boolean;
   readOnly?: boolean;
+  lang?: string;
 }) {
   if (items.length === 0) {
     return <p className="text-sm text-stone-400">No ingredients listed.</p>;
@@ -207,7 +212,7 @@ export default function IngredientList({
   return (
     <ul className="space-y-2">
       {items.map((item, i) => (
-        <Row key={i} item={item} picnicLinked={picnicLinked} readOnly={readOnly} />
+        <Row key={i} item={item} picnicLinked={picnicLinked} readOnly={readOnly} lang={lang} />
       ))}
     </ul>
   );

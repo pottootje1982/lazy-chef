@@ -44,3 +44,27 @@ const NL: Record<string, string> = {
 export function translateWord(word: string): string {
   return NL[word] ?? word;
 }
+
+// English ingredient words vs their Dutch translations. Words that are spelled
+// the same in both (broccoli, avocado, feta, paprika…) are ambiguous and
+// ignored for language detection.
+const EN_WORDS = new Set(Object.keys(NL));
+const NL_WORDS = new Set(Object.values(NL));
+
+// Best-effort: is this recipe written in English? Decided over the whole recipe
+// (title + ingredients) rather than a single line, so EN/NL homographs don't
+// flip the result. Used to translate ingredients to Dutch before searching the
+// (Dutch) grocer for English recipes, while leaving Dutch recipes untouched.
+export function isLikelyEnglish(texts: string[]): boolean {
+  let en = 0;
+  let nl = 0;
+  for (const t of texts) {
+    for (const w of t.toLowerCase().split(/[^a-zà-ÿ]+/).filter(Boolean)) {
+      const isEn = EN_WORDS.has(w);
+      const isNl = NL_WORDS.has(w);
+      if (isEn && !isNl) en++;
+      else if (isNl && !isEn) nl++;
+    }
+  }
+  return en > 0 && en > nl;
+}

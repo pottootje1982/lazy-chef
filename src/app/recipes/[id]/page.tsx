@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
 import { normalizeIngredient } from "@/lib/translate";
+import { isLikelyEnglish } from "@/lib/nl-dict";
 import { CATEGORY_LABEL } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
@@ -54,6 +55,9 @@ export default async function RecipeDetailPage({
         : null,
     };
   });
+
+  // English recipes: translate ingredients to Dutch before searching the grocer.
+  const recipeLang = isLikelyEnglish([recipe.title, ...recipe.ingredients]) ? "en" : undefined;
 
   const deleteAction = deleteRecipe.bind(null, recipe.id);
 
@@ -166,6 +170,7 @@ export default async function RecipeDetailPage({
             items={ingredientItems}
             picnicLinked={picnicLinked}
             readOnly={isGuest}
+            lang={recipeLang}
           />
         </section>
 

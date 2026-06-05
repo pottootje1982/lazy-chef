@@ -34,6 +34,7 @@ export default function PicnicProductSearch({
   initialQuery = "",
   placeholder = "search term…",
   autoSearch = false,
+  lang,
   action,
 }: {
   ingredient?: string;
@@ -41,6 +42,7 @@ export default function PicnicProductSearch({
   initialQuery?: string;
   placeholder?: string;
   autoSearch?: boolean;
+  lang?: string; // "en" → translate the ingredient to Dutch before searching
   action: ProductAction;
 }) {
   const [query, setQuery] = useState(initialQuery);
@@ -58,7 +60,7 @@ export default function PicnicProductSearch({
       // Ingredient mode → {ingredient, query?} (server normalizes + translates).
       // Plain mode → {query} verbatim.
       const body = ingredient
-        ? { ingredient, ...(q ? { query: q } : {}) }
+        ? { ingredient, ...(lang ? { lang } : {}), ...(q ? { query: q } : {}) }
         : { query: (q ?? query).trim() };
       const res = await fetch("/api/picnic/search", {
         method: "POST",

@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "picnic_not_linked" }, { status: 409 });
   }
 
-  let body: { ingredient?: string; query?: string };
+  let body: { ingredient?: string; query?: string; lang?: string };
   try {
     body = await req.json();
   } catch {
@@ -28,6 +28,9 @@ export async function POST(req: Request) {
 
   const ingredient = body.ingredient?.trim();
   const manualQuery = body.query?.trim();
+  // The caller (e.g. an English recipe's detail page) can hint the language so
+  // we translate to Dutch before searching.
+  const isEnglish = body.lang === "en";
   if (!ingredient && !manualQuery) {
     return NextResponse.json({ error: "Missing ingredient" }, { status: 400 });
   }
@@ -42,20 +45,34 @@ export async function POST(req: Request) {
       translated = manualQuery;
       products = await searchProducts(authKey, manualQuery);
     } else {
-      // Picnic is a Dutch grocer and the cleaned ingredient key is usually
-      // already Dutch, so search it directly first. Only fall back to EN→NL
-      // translation when the direct search finds nothing — this avoids mangling
-      // Dutch terms (e.g. "spinazie" → "sinaasappel", "roomboter" → "kamerbot").
       const key = normalizeIngredient(ingredient!);
-      translated = key;
-      products = await searchProducts(authKey, key);
-      if (products.length === 0) {
+      if (isEnglish) {
+        // English recipe → translate the ingredient to Dutch first (the grocer is
+        // Dutch). Fall back to the raw key if translation finds nothing.
         const t = await translateToDutch(key);
-        if (t && t.toLowerCase() !== key.toLowerCase()) {
-          const viaTranslation = await searchProducts(authKey, t);
-          if (viaTranslation.length > 0) {
-            products = viaTranslation;
-            translated = t;
+        translated = t || key;
+        products = await searchProducts(authKey, translated);
+        if (products.length === 0 && translated.toLowerCase() !== key.toLowerCase()) {
+          const viaKey = await searchProducts(authKey, key);
+          if (viaKey.length > 0) {
+            products = viaKey;
+            translated = key;
+          }
+        }
+      } else {
+        // Dutch/unknown → the cleaned key is usually already Dutch, so search it
+        // directly first. Only fall back to EN→NL translation when that finds
+        // nothing — avoids mangling Dutch terms ("spinazie" → "sinaasappel").
+        translated = key;
+        products = await searchProducts(authKey, key);
+        if (products.length === 0) {
+          const t = await translateToDutch(key);
+          if (t && t.toLowerCase() !== key.toLowerCase()) {
+            const viaTranslation = await searchProducts(authKey, t);
+            if (viaTranslation.length > 0) {
+              products = viaTranslation;
+              translated = t;
+            }
           }
         }
       }
