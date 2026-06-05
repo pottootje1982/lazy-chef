@@ -5,15 +5,21 @@ import { prisma } from "@/lib/prisma";
 import { RECIPE_CATEGORIES as CATEGORIES } from "@/lib/categories";
 import RecipeGrid from "./RecipeGrid";
 
+// Origin-based filter chips (shown only when the user has such recipes).
+const ORIGIN_FILTERS = [
+  { key: "scan", label: "📷 Scanned" },
+  { key: "paprika", label: "From Paprika" },
+] as const;
+
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cat?: string }>;
+  searchParams: Promise<{ q?: string; cat?: string; origin?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const { q, cat } = await searchParams;
+  const { q, cat, origin } = await searchParams;
   const query = q?.trim();
 
   // Multiple categories allowed (comma-separated); a recipe matching ANY of
@@ -22,8 +28,12 @@ export default async function RecipesPage({
   const activeCats = [
     ...new Set((cat ?? "").split(",").map((s) => s.trim()).filter((s) => validKeys.has(s))),
   ];
+  const validOrigins = new Set(ORIGIN_FILTERS.map((o) => o.key as string));
+  const activeOrigins = [
+    ...new Set((origin ?? "").split(",").map((s) => s.trim()).filter((s) => validOrigins.has(s))),
+  ];
 
-  const [recipes, lists] = await Promise.all([
+  const [recipes, lists, originRows] = await Promise.all([
     prisma.recipe.findMany({
       where: {
         userId: session.user.id,
@@ -36,6 +46,7 @@ export default async function RecipesPage({
             }
           : {}),
         ...(activeCats.length ? { categories: { hasSome: activeCats } } : {}),
+        ...(activeOrigins.length ? { origin: { in: activeOrigins } } : {}),
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -44,36 +55,48 @@ export default async function RecipesPage({
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { items: true } } },
     }),
+    // Which origin chips to show: only those the user actually has.
+    prisma.recipe.findMany({
+      where: { userId: session.user.id, origin: { in: ORIGIN_FILTERS.map((o) => o.key) } },
+      select: { origin: true },
+      distinct: ["origin"],
+    }),
   ]);
 
-  // Hide pinned grocery lists while filtering by recipe category.
-  const listCards = activeCats.length
+  const existingOrigins = new Set(originRows.map((r) => r.origin));
+  const originChips = ORIGIN_FILTERS.filter((o) => existingOrigins.has(o.key));
+  const filtering = activeCats.length > 0 || activeOrigins.length > 0;
+
+  // Hide pinned grocery lists while filtering recipes.
+  const listCards = filtering
     ? []
     : lists.map((l) => ({ id: l.id, name: l.name, itemCount: l._count.items }));
-  const showOnboarding =
-    !query && activeCats.length === 0 && recipes.length === 0 && lists.length === 0;
+  const showOnboarding = !query && !filtering && recipes.length === 0 && lists.length === 0;
 
-  // Toggle a chip in/out of the active set, preserving the search term.
-  // `key` undefined = the "All" chip (clears categories).
-  const chipHref = (key?: string) => {
-    const next = !key
-      ? []
-      : activeCats.includes(key)
-        ? activeCats.filter((k) => k !== key)
-        : [...activeCats, key];
+  // Build a /recipes URL from the given category + origin selections, keeping
+  // the search term. Each chip toggles its own key while preserving the others.
+  const buildHref = (cats: string[], origins: string[]) => {
     const p = new URLSearchParams();
     if (query) p.set("q", query);
-    if (next.length) p.set("cat", next.join(","));
+    if (cats.length) p.set("cat", cats.join(","));
+    if (origins.length) p.set("origin", origins.join(","));
     const s = p.toString();
     return s ? `/recipes?${s}` : "/recipes";
   };
+  const toggle = (list: string[], key: string) =>
+    list.includes(key) ? list.filter((k) => k !== key) : [...list, key];
+  const catHref = (key?: string) => buildHref(key ? toggle(activeCats, key) : [], activeOrigins);
+  const originHref = (key: string) => buildHref(activeCats, toggle(activeOrigins, key));
+  const allHref = buildHref([], []); // clears every filter
+
   const chipClass = (active: boolean) =>
     `rounded-full px-3 py-1 text-sm transition ${
       active ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
     }`;
-  const catLabel = activeCats
-    .map((k) => CATEGORIES.find((c) => c.key === k)!.label.toLowerCase())
-    .join(" or ");
+  const catLabel = [
+    ...activeCats.map((k) => CATEGORIES.find((c) => c.key === k)!.label.toLowerCase()),
+    ...activeOrigins.map((k) => ORIGIN_FILTERS.find((o) => o.key === k)!.label.toLowerCase()),
+  ].join(" + ");
 
   return (
     <div>
@@ -87,18 +110,31 @@ export default async function RecipesPage({
             className="input max-w-xs"
           />
           {activeCats.length ? <input type="hidden" name="cat" value={activeCats.join(",")} /> : null}
+          {activeOrigins.length ? (
+            <input type="hidden" name="origin" value={activeOrigins.join(",")} />
+          ) : null}
           <button className="btn-secondary">Search</button>
         </form>
       </div>
 
-      {/* Category filter chips (multi-select, OR) */}
+      {/* Filter chips: categories (multi-select, OR) + origin (only when present) */}
       <div className="mb-6 flex flex-wrap gap-2">
-        <Link href={chipHref()} className={chipClass(activeCats.length === 0)}>
+        <Link href={allHref} className={chipClass(!filtering)}>
           All
         </Link>
         {CATEGORIES.map((c) => (
-          <Link key={c.key} href={chipHref(c.key)} className={chipClass(activeCats.includes(c.key))}>
+          <Link key={c.key} href={catHref(c.key)} className={chipClass(activeCats.includes(c.key))}>
             {c.label}
+          </Link>
+        ))}
+        {originChips.length ? (
+          <span className="mx-1 self-center text-stone-300" aria-hidden>
+            |
+          </span>
+        ) : null}
+        {originChips.map((o) => (
+          <Link key={o.key} href={originHref(o.key)} className={chipClass(activeOrigins.includes(o.key))}>
+            {o.label}
           </Link>
         ))}
       </div>
