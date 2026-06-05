@@ -64,6 +64,7 @@ Requires **Node ≥ 18.18** (an `.nvmrc` pins 22.17.1 — run `nvm use`).
 - `npm run dev` — start the dev server
 - `npm run db:push` — push the Prisma schema to the database
 - `npm run db:studio` — browse data in Prisma Studio
+- `npm test` — run unit tests (ingredient normalization / quantity parsing) via Node's test runner
 - `npm run check:gcs` — upload a 1×1 test image to verify `GCS_BUCKET` + `GCS_SA_KEY` work
 - `npm run build` / `npm start` — production build & serve
 

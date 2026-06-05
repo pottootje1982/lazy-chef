@@ -12,6 +12,7 @@
     "seed:guest": "node scripts/seed-guest.mjs",
     "classify": "node scripts/classify-categories.mjs",
     "check:gcs": "node --env-file=.env scripts/check-gcs.mjs",
+    "test": "node --disable-warning=ExperimentalWarning --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --experimental-strip-types --test \"src/**/*.test.ts\"",
     "postinstall": "prisma generate"
   },
   "dependencies": {
