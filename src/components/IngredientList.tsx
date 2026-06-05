@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
 import {
   markIngredientUnavailable,
@@ -32,8 +32,9 @@ function euro(cents: number | null): string | null {
   return "€" + (cents / 100).toFixed(2).replace(".", ",");
 }
 
-// Per-ingredient order quantity, persisted as a per-recipe override.
-function QtyStepper({
+// Compact per-ingredient order quantity (persisted as a per-recipe override).
+// Number + tiny up/down arrows; also responds to the mouse wheel.
+function QtySpinner({
   recipeId,
   ingredientKey,
   initial,
@@ -45,35 +46,57 @@ function QtyStepper({
   defaultQuantity: number;
 }) {
   const [qty, setQty] = useState(initial);
-  function change(delta: number) {
-    const next = Math.max(1, Math.min(99, qty + delta));
-    if (next === qty) return;
+  const qtyRef = useRef(initial);
+  const ref = useRef<HTMLDivElement>(null);
+
+  function bump(delta: number) {
+    const next = Math.max(1, Math.min(99, qtyRef.current + delta));
+    if (next === qtyRef.current) return;
+    qtyRef.current = next;
     setQty(next);
     void setIngredientQuantity(recipeId, ingredientKey, next).catch(() => {});
   }
+
+  // Scroll-to-change (non-passive so we can stop the page from scrolling).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      bump(e.deltaY < 0 ? 1 : -1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const overridden = qty !== defaultQuantity;
   return (
-    <div className="flex flex-none flex-col items-center">
-      <div className="flex items-center gap-1">
+    <div
+      ref={ref}
+      title={`Order quantity${overridden ? ` (recipe: ${defaultQuantity})` : ""} — scroll or use arrows`}
+      className="flex flex-none items-center gap-0.5 rounded border border-stone-200 px-1 py-0.5"
+    >
+      <span className={`text-sm tabular-nums ${overridden ? "font-semibold text-brand-700" : "text-stone-700"}`}>
+        ×{qty}
+      </span>
+      <span className="flex flex-col leading-none">
         <button
-          onClick={() => change(-1)}
-          disabled={qty <= 1}
-          className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-          aria-label="Decrease quantity"
-        >
-          −
-        </button>
-        <span className="w-5 text-center text-sm tabular-nums">{qty}</span>
-        <button
-          onClick={() => change(1)}
+          onClick={() => bump(1)}
           disabled={qty >= 99}
-          className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
+          className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
           aria-label="Increase quantity"
         >
-          +
+          ▲
         </button>
-      </div>
-      <span className="mt-0.5 text-[10px] text-stone-400">
-        {qty === defaultQuantity ? "qty" : `recipe: ${defaultQuantity}`}
+        <button
+          onClick={() => bump(-1)}
+          disabled={qty <= 1}
+          className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
+          aria-label="Decrease quantity"
+        >
+          ▼
+        </button>
       </span>
     </div>
   );
@@ -194,7 +217,7 @@ function Row({
           </div>
           {readOnly ? null : (
             <>
-              <QtyStepper
+              <QtySpinner
                 recipeId={recipeId}
                 ingredientKey={item.ingredientKey}
                 initial={item.quantity}
