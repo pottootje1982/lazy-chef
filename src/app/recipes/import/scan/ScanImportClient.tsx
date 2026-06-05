@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRecipe } from "@/app/actions";
 import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
+import ScanFileButtons from "@/components/ScanFileButtons";
+import { takePendingScanFile } from "@/lib/pending-scan";
 import { classify } from "@/lib/categories";
 import {
   wordsInRect,
@@ -131,6 +133,13 @@ export default function ScanImportClient() {
     };
   }, [previewUrl]);
 
+  // If the import hub handed off a picked file, process it on arrival.
+  useEffect(() => {
+    const handed = takePendingScanFile();
+    if (handed) processFile(handed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function reset() {
     setRects([]);
     setOcr(null);
@@ -143,9 +152,13 @@ export default function ScanImportClient() {
     setPdfPage(1);
   }
 
-  async function onChooseFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const original = e.target.files?.[0];
-    if (!original) return;
+  // Route a picked file to the right pipeline (PDF render vs image).
+  function processFile(file: File) {
+    if (file.type === "application/pdf") void processPdfFile(file);
+    else void processImageFile(file);
+  }
+
+  async function processImageFile(original: File) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     reset();
     setOcrLoading(true); // covers the brief resize before OCR starts
@@ -180,9 +193,7 @@ export default function ScanImportClient() {
   }
 
   // ── PDF upload: render a page to an image, then reuse the photo pipeline ────
-  async function onChoosePdf(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function processPdfFile(file: File) {
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     reset();
     setOcrLoading(true);
@@ -454,31 +465,8 @@ export default function ScanImportClient() {
 
   return (
     <div className="space-y-5">
-      {/* Step 1 — choose a photo. Two inputs: one opens the camera directly
-          (capture), one opens the gallery/file picker. On desktop both just
-          open the file dialog. */}
-      <div className="flex flex-wrap gap-3">
-        <label className="btn-primary inline-block cursor-pointer">
-          📷 {file ? "Take a new photo" : "Take a photo"}
-          {/* sr-only (not display:none) — some Android webviews won't trigger the
-              camera for a display:none input. */}
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={onChooseFile}
-            className="sr-only"
-          />
-        </label>
-        <label className="btn-secondary inline-block cursor-pointer">
-          🖼 Choose from library
-          <input type="file" accept="image/*" onChange={onChooseFile} className="sr-only" />
-        </label>
-        <label className="btn-secondary inline-block cursor-pointer">
-          📄 Upload PDF
-          <input type="file" accept="application/pdf" onChange={onChoosePdf} className="sr-only" />
-        </label>
-      </div>
+      {/* Choose / re-pick a file (camera, library, or PDF). */}
+      <ScanFileButtons onPick={processFile} hasFile={!!file} />
 
       {pdfPageCount > 1 ? (
         <div className="flex items-center gap-3 text-sm text-stone-600">
