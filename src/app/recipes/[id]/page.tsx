@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
-import { normalizeIngredient, parseCount } from "@/lib/translate";
+import { normalizeIngredient, defaultOrderCount } from "@/lib/translate";
 import { isLikelyEnglish } from "@/lib/nl-dict";
 import { CATEGORY_LABEL } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
@@ -40,7 +40,7 @@ export default async function RecipeDetailPage({
   const ingredientItems: IngredientItem[] = recipe.ingredients.map((raw) => {
     const key = normalizeIngredient(raw);
     const m = byKey.get(key);
-    const defaultQuantity = parseCount(raw);
+    const defaultQuantity = defaultOrderCount(raw, m?.unitQuantity ?? null);
     return {
       raw,
       ingredientKey: key,

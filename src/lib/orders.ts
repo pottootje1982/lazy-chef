@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { normalizeIngredient, parseCount } from "@/lib/translate";
+import { normalizeIngredient, defaultOrderCount } from "@/lib/translate";
 import { productImageUrl } from "@/lib/picnic";
 
 // A linked ingredient is a pantry staple when its normalized key contains one
@@ -95,7 +95,7 @@ export async function aggregateOrder(
         return { label: raw, mappedName: null, unmapped: true };
       }
       const ov = overrides[key];
-      const n = typeof ov === "number" ? ov : parseCount(raw);
+      const n = typeof ov === "number" ? ov : defaultOrderCount(raw, m.unitQuantity);
       const existing = cart.get(m.picnicId);
       if (existing) {
         existing.quantity += n;

@@ -4,7 +4,12 @@ import { translateWord } from "@/lib/nl-dict";
 // Pure text helpers live in a dependency-free module so they can be unit-tested
 // without pulling in Prisma. Re-exported here so existing `@/lib/translate`
 // imports keep working.
-export { normalizeIngredient, parseCount } from "@/lib/ingredient-normalize";
+export {
+  normalizeIngredient,
+  parseCount,
+  isWeightPackage,
+  defaultOrderCount,
+} from "@/lib/ingredient-normalize";
 
 // Translate English -> Dutch via Google Cloud Translation, cached in Postgres.
 export async function translateToDutch(englishText: string): Promise<string> {

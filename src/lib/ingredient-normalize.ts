@@ -123,3 +123,18 @@ export function parseCount(line: string): number {
   if (after.some((w) => COUNT_UNIT_TOKENS.has(w))) return 1;
   return n;
 }
+
+// A Picnic product sold by weight/volume (e.g. unitQuantity "500 gram", "1 kg",
+// "330 ml") holds many of a counted item, so a recipe's item-count ("12 prawns")
+// is NOT a number of packages.
+const WEIGHT_PACK_RE = /\b\d[\d.,]*\s*(?:g|gr|gram|grams|kg|kilo|mg|ml|cl|dl|l|liter|litre|liters|litres)\b/i;
+export function isWeightPackage(unitQuantity: string | null | undefined): boolean {
+  return !!unitQuantity && WEIGHT_PACK_RE.test(unitQuantity);
+}
+
+// Default number of product units to order for an ingredient line, given the
+// linked product's unit. Counted items map to their count ("4 uien" → 4), but a
+// weight/volume package defaults to 1 ("12 prawns" → 1× a 500g bag).
+export function defaultOrderCount(line: string, unitQuantity: string | null | undefined): number {
+  return isWeightPackage(unitQuantity) ? 1 : parseCount(line);
+}

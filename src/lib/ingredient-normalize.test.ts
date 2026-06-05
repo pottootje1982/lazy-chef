@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeIngredient, parseCount } from "./ingredient-normalize.ts";
+import {
+  normalizeIngredient,
+  parseCount,
+  isWeightPackage,
+  defaultOrderCount,
+} from "./ingredient-normalize.ts";
 
 test("normalizeIngredient: parentheticals are dropped", () => {
   // The reported regression: a parenthetical measure must not pollute the key.
@@ -40,4 +45,26 @@ test("parseCount: counts only whole items, never measures", () => {
   assert.equal(parseCount("2-3 onions"), 1); // range → conservative
   assert.equal(parseCount("½ onion"), 1); // no leading integer
   assert.equal(parseCount("flour"), 1); // no number
+});
+
+test("isWeightPackage: detects weight/volume product units", () => {
+  assert.equal(isWeightPackage("500 gram"), true);
+  assert.equal(isWeightPackage("500 g"), true);
+  assert.equal(isWeightPackage("1 kg"), true);
+  assert.equal(isWeightPackage("330 ml"), true);
+  assert.equal(isWeightPackage("6 stuks"), false); // piece pack, not weight
+  assert.equal(isWeightPackage("per stuk"), false);
+  assert.equal(isWeightPackage(null), false);
+});
+
+test("defaultOrderCount: item count, but 1 for weight packages", () => {
+  // counted item linked to a per-piece product → keep the count
+  assert.equal(defaultOrderCount("4 grofgesneden uien", "per stuk"), 4);
+  // counted items linked to a gram package → 1 package
+  assert.equal(defaultOrderCount("12 raw tiger prawns, deveined", "500 gram"), 1);
+  assert.equal(defaultOrderCount("8 raw langoustines", "500 gram"), 1);
+  // measures already parse to 1 regardless
+  assert.equal(defaultOrderCount("1.5 kg spinazie", "400 gram"), 1);
+  // unknown unit → fall back to parsed count
+  assert.equal(defaultOrderCount("3 onions", null), 3);
 });
