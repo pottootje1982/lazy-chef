@@ -82,7 +82,7 @@ export async function setGroceryItemQuantity(
 ): Promise<void> {
   const userId = await writerId();
   if (!userId) return;
-  const q = Math.max(1, Math.min(99, Math.floor(Number(quantity) || 1)));
+  const q = Math.max(0, Math.min(99, Math.floor(Number(quantity))));
   // Scope the update to the caller's lists.
   await prisma.groceryItem.updateMany({
     where: { id: itemId, list: { userId } },

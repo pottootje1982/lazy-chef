@@ -23,7 +23,7 @@ type Item = {
 function QtyStepper({ id, initial }: { id: string; initial: number }) {
   const [qty, setQty] = useState(initial);
   function change(delta: number) {
-    const next = Math.max(1, Math.min(99, qty + delta));
+    const next = Math.max(0, Math.min(99, qty + delta));
     if (next === qty) return;
     setQty(next);
     void setGroceryItemQuantity(id, next).catch(() => {});
@@ -32,7 +32,7 @@ function QtyStepper({ id, initial }: { id: string; initial: number }) {
     <div className="flex flex-none items-center gap-1">
       <button
         onClick={() => change(-1)}
-        disabled={qty <= 1}
+        disabled={qty <= 0}
         className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
         aria-label="Decrease quantity"
       >
