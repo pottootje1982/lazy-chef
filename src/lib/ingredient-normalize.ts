@@ -162,7 +162,11 @@ export function parseNeededAmount(
 // Piece words that mark a product sold as a count of items.
 const PIECE_WORDS =
   "stuks?|st|blokjes?|schijfjes?|plakjes?|sneetjes?|vellen|porties?|zakjes?|" +
-  "blikken|blikje|blik|bosjes?|bos|kroppen|krop|bollen|bol";
+  "blikken|blikje|blik|kroppen|krop|bollen|bol";
+
+// Bunch-style packs: a single "bosje" already holds many (spring onions, herbs),
+// so a recipe's item count is NOT a number of bunches — always order one bunch.
+const BUNCH_RE = /\b(?:bos|bosje|bosjes|bossen|bundel|bundels)\b/i;
 
 // Parse a product's unitQuantity into the dimensions we can divide by: a piece
 // count and/or a total weight (g) / volume (ml). Handles multipacks ("6 x 500 ml",
@@ -208,6 +212,8 @@ export function parsePackSize(
 // old behaviour when the two can't be matched (e.g. "12 prawns" → "500 gram" → 1).
 const clampPkgs = (n: number) => Math.max(1, Math.min(12, n));
 export function defaultOrderCount(line: string, unitQuantity: string | null | undefined): number {
+  // A bunch already contains many items → a single bunch covers the recipe.
+  if (unitQuantity && BUNCH_RE.test(unitQuantity)) return 1;
   const pack = parsePackSize(unitQuantity);
   const need = parseNeededAmount(line);
   if (need.kind === "mass" && pack.grams) return clampPkgs(Math.ceil(need.value / pack.grams));

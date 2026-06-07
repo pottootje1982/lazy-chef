@@ -88,6 +88,8 @@ test("parsePackSize: pieces, weight, volume and multipacks", () => {
   // hybrid: last "N stuks" + parenthetical weight
   assert.deepEqual(parsePackSize("2 of 3 stuks (ca 250g)"), { count: 3, grams: 250 });
   assert.deepEqual(parsePackSize("1 stuk • ca. 300 gram"), { count: 1, grams: 300 });
+  // a bunch is not a divisible piece count
+  assert.deepEqual(parsePackSize("1 bosje"), {});
   assert.deepEqual(parsePackSize(null), {});
 });
 
@@ -106,6 +108,9 @@ test("defaultOrderCount: packages = ceil(amount needed / pack size)", () => {
   // count need + weight-only pack can't be divided → 1 (unchanged)
   assert.equal(defaultOrderCount("12 raw tiger prawns, deveined", "500 gram"), 1);
   assert.equal(defaultOrderCount("8 raw langoustines", "500 gram"), 1);
+  // a bunch already holds many → one bunch, never multiply by the count
+  assert.equal(defaultOrderCount("6 spring onions finely sliced", "1 bosje"), 1);
+  assert.equal(defaultOrderCount("4 green onions, chopped", "1 bos"), 1);
   // unknown unit → fall back to parsed count
   assert.equal(defaultOrderCount("3 onions", null), 3);
 });
