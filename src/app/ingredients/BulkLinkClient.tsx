@@ -42,6 +42,8 @@ export type LinkedItem = {
   raw: string;
   count: number;
   recipes: { id: string; title: string }[];
+  words: string[]; // Dutch chip words (from the original search term)
+  prefill: string; // Dutch search term to prefill when re-searching
   product: LinkedProduct;
 };
 
@@ -121,7 +123,9 @@ function LinkedRow({
       {editing ? (
         <PicnicProductSearch
           ingredient={item.raw}
-          initialQuery={item.product.name}
+          words={item.words}
+          initialQuery={item.prefill || item.key}
+          autoSearch
           action={{
             label: "Link",
             onPick: async (p, query) => {
@@ -290,6 +294,8 @@ export default function BulkLinkClient({
         raw: item.raw,
         count: item.count,
         recipes: item.recipes,
+        words: item.words,
+        prefill: item.prefill,
         product: {
           name: p.name,
           imageUrl: p.imageUrl,

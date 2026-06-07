@@ -87,9 +87,11 @@ export default function PicnicProductSearch({
     }
   }
 
-  // Auto-search on mount (e.g. recipe-details "Link product" panel).
+  // Auto-search on mount (e.g. recipe-details "Link product" panel, or the
+  // "Change" panel which prefills the original Dutch search term). When an
+  // initialQuery is given, search it verbatim; otherwise translate the ingredient.
   useEffect(() => {
-    if (autoSearch) void runSearch();
+    if (autoSearch) void runSearch(initialQuery || undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

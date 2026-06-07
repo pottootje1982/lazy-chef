@@ -20,21 +20,8 @@ wine). Those are filtered out below; what remains is grouped by severity.
 These are the `butternut squash → conference pears` class: the Dutch search term
 is correct, but the linked product is an unrelated food.
 
-| ingredient (key)                                 | linked product                                        | should be           |
-| ------------------------------------------------ | ----------------------------------------------------- | ------------------- |
-| mace                                             | **Picnic aluminiumfolie** (foil — "foelie" homograph) | foelie (spice)      |
-| mustard powder                                   | **Verstegen chilipoeder**                             | mosterdpoeder       |
-| asafoetida                                       | **Verstegen chilipoeder**                             | asafoetida/ ventjes |
-| heaped curry powder                              | **Verstegen chilipoeder**                             | kerriepoeder        |
-| puy lentils                                      | **Bonduelle Franse sperzieboontjes** (green beans)    | puy linzen          |
-| savoy cabbage                                    | **Bloemkool** (cauliflower)                           | savooiekool         |
-| tilapia fillets                                  | **Zoete aardappelen** (sweet potatoes)                | tilapia             |
-| limoenen (limes)                                 | **Bio citroenen** (lemons)                            | limoenen            |
-| cilantro-leaves stems                            | **Maza hoemoes** (hummus)                             | koriander           |
-| thyme / thyme leaves / thyme oregano / few thyme | **Verstegen rozemarijn** (rosemary)                   | tijm                |
-| oyster sauce                                     | **woksaus hoisin**                                    | oestersaus          |
-| worcestershire / worcestershire sauce            | **woksaus hoisin**                                    | worcestersaus       |
-| dark soy sauce / light soy sauce                 | **woksaus hoisin**                                    | sojasaus            |
+| ingredient (key) | linked product | should be |
+| ---------------- | -------------- | --------- |
 
 ## B. Probable unintended substitution (defensible, but verify)
 

@@ -132,9 +132,88 @@ export function isWeightPackage(unitQuantity: string | null | undefined): boolea
   return !!unitQuantity && WEIGHT_PACK_RE.test(unitQuantity);
 }
 
+// ── Amount-aware ordering ────────────────────────────────────────────────
+// Number → grams / millilitres conversion factors for known units.
+const MASS_TO_G: Record<string, number> = {
+  mg: 0.001, g: 1, gr: 1, gram: 1, grams: 1, grammen: 1,
+  ons: 100, pond: 500, kg: 1000, kilo: 1000, kilogram: 1000,
+};
+const VOL_TO_ML: Record<string, number> = {
+  ml: 1, cl: 10, dl: 100, l: 1000, liter: 1000, litre: 1000, liters: 1000, litres: 1000,
+};
+const MASS_UNITS = Object.keys(MASS_TO_G).join("|");
+const VOL_UNITS = Object.keys(VOL_TO_ML).join("|");
+
+const num = (s: string) => parseFloat(s.replace(",", "."));
+
+// The amount a recipe line needs: a weight, a volume, or a count of whole items.
+// Weight/volume win over count so "1.5 kg spinazie" is mass, not "1".
+export function parseNeededAmount(
+  line: string,
+): { kind: "mass" | "volume" | "count"; value: number } {
+  const s = line.toLowerCase();
+  const mass = s.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MASS_UNITS})\\b`));
+  if (mass) return { kind: "mass", value: num(mass[1]) * MASS_TO_G[mass[2]] };
+  const vol = s.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${VOL_UNITS})\\b`));
+  if (vol) return { kind: "volume", value: num(vol[1]) * VOL_TO_ML[vol[2]] };
+  return { kind: "count", value: parseCount(line) };
+}
+
+// Piece words that mark a product sold as a count of items.
+const PIECE_WORDS =
+  "stuks?|st|blokjes?|schijfjes?|plakjes?|sneetjes?|vellen|porties?|zakjes?|" +
+  "blikken|blikje|blik|bosjes?|bos|kroppen|krop|bollen|bol";
+
+// Parse a product's unitQuantity into the dimensions we can divide by: a piece
+// count and/or a total weight (g) / volume (ml). Handles multipacks ("6 x 500 ml",
+// "2 stuks à 125 gram") and parenthetical weights ("1 stuk • ca. 300 gram").
+export function parsePackSize(
+  unitQuantity: string | null | undefined,
+): { count?: number; grams?: number; ml?: number } {
+  if (!unitQuantity) return {};
+  const s = unitQuantity.toLowerCase();
+  const out: { count?: number; grams?: number; ml?: number } = {};
+
+  // Multipack: "N x M <unit>" or "N stuks à M <unit>" → count N, total = N×M.
+  const multi = s.match(
+    new RegExp(`(\\d+)\\s*(?:x|×|stuks?\\s*à|st\\.?\\s*à)\\s*(\\d+(?:[.,]\\d+)?)\\s*(${MASS_UNITS}|${VOL_UNITS})\\b`),
+  );
+  if (multi) {
+    const n = parseInt(multi[1], 10);
+    const per = num(multi[2]);
+    out.count = n;
+    if (multi[3] in MASS_TO_G) out.grams = n * per * MASS_TO_G[multi[3]];
+    else out.ml = n * per * VOL_TO_ML[multi[3]];
+    return out;
+  }
+
+  // Single weight / volume anywhere (incl. parentheticals).
+  const mass = s.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${MASS_UNITS})\\b`));
+  if (mass) out.grams = num(mass[1]) * MASS_TO_G[mass[2]];
+  const vol = s.match(new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${VOL_UNITS})\\b`));
+  if (vol) out.ml = num(vol[1]) * VOL_TO_ML[vol[2]];
+
+  // Piece count: a number directly followed by a piece word (last match wins, so
+  // "2 of 3 stuks" → 3). "per stuk" / a lone "stuk" → 1.
+  const pieces = [...s.matchAll(new RegExp(`(\\d+)\\s*(?:${PIECE_WORDS})\\b`, "g"))];
+  if (pieces.length) out.count = parseInt(pieces[pieces.length - 1][1], 10);
+  else if (/\b(?:per\s+stuk|stuks?)\b/.test(s)) out.count = 1;
+
+  return out;
+}
+
 // Default number of product units to order for an ingredient line, given the
-// linked product's unit. Counted items map to their count ("4 uien" → 4), but a
-// weight/volume package defaults to 1 ("12 prawns" → 1× a 500g bag).
+// linked product's unit: packages = ceil(amount needed ÷ pack size), matched on
+// the same dimension (count, weight, or volume). Falls back to the conservative
+// old behaviour when the two can't be matched (e.g. "12 prawns" → "500 gram" → 1).
+const clampPkgs = (n: number) => Math.max(1, Math.min(12, n));
 export function defaultOrderCount(line: string, unitQuantity: string | null | undefined): number {
-  return isWeightPackage(unitQuantity) ? 1 : parseCount(line);
+  const pack = parsePackSize(unitQuantity);
+  const need = parseNeededAmount(line);
+  if (need.kind === "mass" && pack.grams) return clampPkgs(Math.ceil(need.value / pack.grams));
+  if (need.kind === "volume" && pack.ml) return clampPkgs(Math.ceil(need.value / pack.ml));
+  if (need.kind === "count" && pack.count) return clampPkgs(Math.ceil(need.value / pack.count));
+  // No matchable dimension → previous behaviour.
+  if (isWeightPackage(unitQuantity)) return 1;
+  return parseCount(line);
 }

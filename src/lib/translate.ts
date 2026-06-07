@@ -9,6 +9,8 @@ export {
   parseCount,
   isWeightPackage,
   defaultOrderCount,
+  parseNeededAmount,
+  parsePackSize,
 } from "@/lib/ingredient-normalize";
 
 // Translate English -> Dutch via Google Cloud Translation, cached in Postgres.

@@ -5,6 +5,8 @@ import {
   parseCount,
   isWeightPackage,
   defaultOrderCount,
+  parseNeededAmount,
+  parsePackSize,
 } from "./ingredient-normalize.ts";
 
 test("normalizeIngredient: parentheticals are dropped", () => {
@@ -57,14 +59,53 @@ test("isWeightPackage: detects weight/volume product units", () => {
   assert.equal(isWeightPackage(null), false);
 });
 
-test("defaultOrderCount: item count, but 1 for weight packages", () => {
+test("parseNeededAmount: weight/volume win over count", () => {
+  assert.deepEqual(parseNeededAmount("1.5 kg spinazie"), { kind: "mass", value: 1500 });
+  assert.deepEqual(parseNeededAmount("200g flour"), { kind: "mass", value: 200 });
+  assert.deepEqual(parseNeededAmount("1,5 kg aardappel"), { kind: "mass", value: 1500 });
+  // first weight wins; the parenthetical tsp is ignored
+  assert.deepEqual(parseNeededAmount("20g (4tsp) orange juice"), { kind: "mass", value: 20 });
+  assert.deepEqual(parseNeededAmount("750 ml milk"), { kind: "volume", value: 750 });
+  assert.deepEqual(parseNeededAmount("1 l water"), { kind: "volume", value: 1000 });
+  // no weight/volume unit → count
+  assert.deepEqual(parseNeededAmount("12 dried figs"), { kind: "count", value: 12 });
+  assert.deepEqual(parseNeededAmount("2 limes"), { kind: "count", value: 2 });
+  assert.deepEqual(parseNeededAmount("5 garlic cloves"), { kind: "count", value: 1 });
+});
+
+test("parsePackSize: pieces, weight, volume and multipacks", () => {
+  assert.deepEqual(parsePackSize("4 stuks"), { count: 4 });
+  assert.deepEqual(parsePackSize("10 stuks S/M/L"), { count: 10 });
+  assert.deepEqual(parsePackSize("per stuk"), { count: 1 });
+  assert.deepEqual(parsePackSize("1 stuk"), { count: 1 });
+  assert.deepEqual(parsePackSize("12 blokjes"), { count: 12 });
+  assert.deepEqual(parsePackSize("500 gram"), { grams: 500 });
+  assert.deepEqual(parsePackSize("1 kilo"), { grams: 1000 });
+  assert.deepEqual(parsePackSize("750 ml"), { ml: 750 });
+  // multipacks: count + total amount
+  assert.deepEqual(parsePackSize("2 stuks à 125 gram"), { count: 2, grams: 250 });
+  assert.deepEqual(parsePackSize("6 x 500 ml"), { count: 6, ml: 3000 });
+  // hybrid: last "N stuks" + parenthetical weight
+  assert.deepEqual(parsePackSize("2 of 3 stuks (ca 250g)"), { count: 3, grams: 250 });
+  assert.deepEqual(parsePackSize("1 stuk • ca. 300 gram"), { count: 1, grams: 300 });
+  assert.deepEqual(parsePackSize(null), {});
+});
+
+test("defaultOrderCount: packages = ceil(amount needed / pack size)", () => {
+  // count ÷ piece count
+  assert.equal(defaultOrderCount("12 dried figs halved", "4 stuks"), 3);
+  assert.equal(defaultOrderCount("6 eggs boiled for 7 mins", "10 stuks S/M/L"), 1);
+  assert.equal(defaultOrderCount("4 grofgesneden uien", "2 stuks"), 2);
+  assert.equal(defaultOrderCount("2 stock cubes", "12 blokjes"), 1);
+  // weight ÷ weight, volume ÷ volume
+  assert.equal(defaultOrderCount("1.5 kg spinazie", "400 gram"), 4);
+  assert.equal(defaultOrderCount("750 ml milk", "250 ml"), 3);
+  assert.equal(defaultOrderCount("200 ml melk", "1 liter"), 1);
   // counted item linked to a per-piece product → keep the count
   assert.equal(defaultOrderCount("4 grofgesneden uien", "per stuk"), 4);
-  // counted items linked to a gram package → 1 package
+  // count need + weight-only pack can't be divided → 1 (unchanged)
   assert.equal(defaultOrderCount("12 raw tiger prawns, deveined", "500 gram"), 1);
   assert.equal(defaultOrderCount("8 raw langoustines", "500 gram"), 1);
-  // measures already parse to 1 regardless
-  assert.equal(defaultOrderCount("1.5 kg spinazie", "400 gram"), 1);
   // unknown unit → fall back to parsed count
   assert.equal(defaultOrderCount("3 onions", null), 3);
 });

@@ -89,6 +89,7 @@ export default async function IngredientsPage() {
       select: {
         ingredientKey: true,
         productName: true,
+        translated: true,
         imageId: true,
         priceCents: true,
         unitQuantity: true,
@@ -133,11 +134,16 @@ export default async function IngredientsPage() {
     .map(([key, v]) => {
       const m = mapByKey.get(key)!;
       const recipes = recipesOf(v);
+      // Re-searching ("Change") should default to the Dutch term the product was
+      // originally found with — derived from the ingredient, not the product name.
+      const prefill = m.translated?.trim() || key;
       return {
         key,
         raw: v.raw,
         count: recipes.length,
         recipes,
+        words: dutchChips(prefill),
+        prefill,
         product: {
           name: m.productName,
           imageUrl: productImageUrl(m.imageId),
