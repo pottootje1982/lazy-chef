@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   renameList,
@@ -107,22 +108,32 @@ export default function GroceryListEditor({
             {list.items.length} product{list.items.length === 1 ? "" : "s"}
           </span>
         </div>
-        <button
-          onClick={() => {
-            if (
-              confirm(
-                `Delete "${name}" and all ${list.items.length} product${
-                  list.items.length === 1 ? "" : "s"
-                }? This can't be undone.`,
-              )
-            ) {
-              deleteList(list.id);
-            }
-          }}
-          className="flex-none text-xs text-stone-400 hover:text-red-600"
-        >
-          Delete list
-        </button>
+        <div className="flex flex-none items-center gap-3">
+          {list.items.length > 0 ? (
+            <Link
+              href={`/order?lists=${list.id}`}
+              className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
+            >
+              Order →
+            </Link>
+          ) : null}
+          <button
+            onClick={() => {
+              if (
+                confirm(
+                  `Delete "${name}" and all ${list.items.length} product${
+                    list.items.length === 1 ? "" : "s"
+                  }? This can't be undone.`,
+                )
+              ) {
+                deleteList(list.id);
+              }
+            }}
+            className="text-xs text-stone-400 hover:text-red-600"
+          >
+            Delete list
+          </button>
+        </div>
       </div>
 
       {collapsed ? null : (
