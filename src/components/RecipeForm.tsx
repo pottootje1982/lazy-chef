@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import type { FormState } from "@/app/actions";
 import { RECIPE_CATEGORIES } from "@/lib/categories";
@@ -107,9 +107,22 @@ export default function RecipeForm({
   submitLabel: string;
 }) {
   const [state, formAction] = useActionState(action, undefined);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Cmd/Ctrl-S saves the recipe (instead of the browser's "save page" dialog).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        formRef.current?.requestSubmit();
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   return (
-    <form action={formAction} className="space-y-6">
+    <form ref={formRef} action={formAction} className="space-y-6">
       {/* Carried through from the photo-scan importer; not user-editable. */}
       <input type="hidden" name="sourceImageUrl" defaultValue={initial.sourceImageUrl} />
       {/* Records how the recipe was created (manual/url/scan/paprika). */}
