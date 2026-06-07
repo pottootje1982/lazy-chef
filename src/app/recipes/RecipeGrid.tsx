@@ -29,6 +29,13 @@ export type GroceryListCard = {
   itemCount: number;
 };
 
+export type FilterChip = { key: string; label: string; href: string; active: boolean };
+
+const chipClass = (active: boolean) =>
+  `rounded-full px-3 py-1 text-sm transition ${
+    active ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+  }`;
+
 type View = "grid" | "list";
 type SortKey = "created" | "ordered";
 type Sort = { key: SortKey; dir: "asc" | "desc" };
@@ -47,9 +54,15 @@ function fmtDate(iso: string): string {
 export default function RecipeGrid({
   recipes,
   lists,
+  catLabel,
+  categoryChips,
+  originChips,
 }: {
   recipes: RecipeCard[];
   lists: GroceryListCard[];
+  catLabel: string;
+  categoryChips: FilterChip[];
+  originChips: FilterChip[];
 }) {
   const router = useRouter();
   const { ids: recipeSel, toggle: toggleRecipe, clear: clearRecipes } =
@@ -63,6 +76,19 @@ export default function RecipeGrid({
 
   const [view, setView] = useState<View>("grid");
   const [sort, setSort] = useState<Sort>({ key: "created", dir: "desc" });
+  const [query, setQuery] = useState("");
+
+  // Filter-as-you-type over title + tags (substring, case-insensitive). This is
+  // client-side: the full set is already loaded, so there's no round-trip.
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return recipes;
+    return recipes.filter(
+      (r) =>
+        r.title.toLowerCase().includes(q) ||
+        r.tags.some((t) => t.toLowerCase().includes(q)),
+    );
+  }, [recipes, query]);
 
   // Load persisted view + sort preferences.
   useEffect(() => {
@@ -129,7 +155,7 @@ export default function RecipeGrid({
   // List view is client-sorted; grid keeps the server order (newest first).
   const sortedForList = useMemo(() => {
     const dir = sort.dir === "asc" ? 1 : -1;
-    return [...recipes].sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       if (sort.key === "created") {
         return a.createdAt < b.createdAt ? -dir : a.createdAt > b.createdAt ? dir : 0;
       }
@@ -139,13 +165,51 @@ export default function RecipeGrid({
       if (b.lastOrderedAt === null) return -1;
       return a.lastOrderedAt < b.lastOrderedAt ? -dir : dir;
     });
-  }, [recipes, sort]);
+  }, [filtered, sort]);
 
   const totalSelected = recipeSel.size + listSel.size;
   const arrow = (key: SortKey) => (sort.key === key ? (sort.dir === "asc" ? " ▲" : " ▼") : "");
 
   return (
     <div>
+      {/* Filter chips (category + origin) inline with the client-side search box */}
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        {categoryChips.map((c) => (
+          <Link key={c.key} href={c.href} className={chipClass(c.active)}>
+            {c.label}
+          </Link>
+        ))}
+        {originChips.length ? (
+          <span className="mx-1 self-center text-stone-300" aria-hidden>
+            |
+          </span>
+        ) : null}
+        {originChips.map((o) => (
+          <Link key={o.key} href={o.href} className={chipClass(o.active)}>
+            {o.label}
+          </Link>
+        ))}
+        {recipes.length > 0 ? (
+          <div className="relative ml-auto">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title or tag…"
+              className="input w-48 pr-8"
+            />
+            {query ? (
+              <button
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
+              >
+                ✕
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+
       {/* Pinned recurring-grocery lists (not recipes). */}
       {lists.length > 0 ? (
         <div className="mb-6">
@@ -183,8 +247,19 @@ export default function RecipeGrid({
         </div>
       ) : null}
 
-      {/* View toggle */}
+      {/* Result count / empty-state, reflecting the live client-side filter */}
       {recipes.length > 0 ? (
+        <p className="mb-4 text-sm text-stone-500">
+          {filtered.length === 0
+            ? `No ${catLabel ? `${catLabel} ` : ""}recipes${query ? ` match “${query}”` : ""}.`
+            : query || catLabel
+              ? `${filtered.length} ${catLabel ? `${catLabel} ` : ""}recipe${filtered.length === 1 ? "" : "s"}.`
+              : "Tip: select recipes or grocery lists with the checkboxes to order from Picnic."}
+        </p>
+      ) : null}
+
+      {/* View toggle */}
+      {filtered.length > 0 ? (
         <div className="mb-4 flex justify-end">
           <div className="inline-flex overflow-hidden rounded-lg border border-stone-200 text-sm">
             <button
@@ -258,7 +333,7 @@ export default function RecipeGrid({
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((recipe) => {
+          {filtered.map((recipe) => {
             const isSelected = recipeSel.has(recipe.id);
             return (
               <div

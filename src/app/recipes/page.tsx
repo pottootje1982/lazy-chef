@@ -14,13 +14,12 @@ const ORIGIN_FILTERS = [
 export default async function RecipesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cat?: string; origin?: string }>;
+  searchParams: Promise<{ cat?: string; origin?: string }>;
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
-  const { q, cat, origin } = await searchParams;
-  const query = q?.trim();
+  const { cat, origin } = await searchParams;
 
   // Multiple categories allowed (comma-separated); a recipe matching ANY of
   // them is shown (OR via Prisma `hasSome`).
@@ -37,14 +36,6 @@ export default async function RecipesPage({
     prisma.recipe.findMany({
       where: {
         userId: session.user.id,
-        ...(query
-          ? {
-              OR: [
-                { title: { contains: query, mode: "insensitive" } },
-                { tags: { has: query.toLowerCase() } },
-              ],
-            }
-          : {}),
         ...(activeCats.length ? { categories: { hasSome: activeCats } } : {}),
         ...(activeOrigins.length ? { origin: { in: activeOrigins } } : {}),
       },
@@ -71,13 +62,12 @@ export default async function RecipesPage({
   const listCards = filtering
     ? []
     : lists.map((l) => ({ id: l.id, name: l.name, itemCount: l._count.items }));
-  const showOnboarding = !query && !filtering && recipes.length === 0 && lists.length === 0;
+  const showOnboarding = !filtering && recipes.length === 0 && lists.length === 0;
 
-  // Build a /recipes URL from the given category + origin selections, keeping
-  // the search term. Each chip toggles its own key while preserving the others.
+  // Build a /recipes URL from the given category + origin selections. Each chip
+  // toggles its own key while preserving the others.
   const buildHref = (cats: string[], origins: string[]) => {
     const p = new URLSearchParams();
-    if (query) p.set("q", query);
     if (cats.length) p.set("cat", cats.join(","));
     if (origins.length) p.set("origin", origins.join(","));
     const s = p.toString();
@@ -89,54 +79,33 @@ export default async function RecipesPage({
   const originHref = (key: string) => buildHref(activeCats, toggle(activeOrigins, key));
   const allHref = buildHref([], []); // clears every filter
 
-  const chipClass = (active: boolean) =>
-    `rounded-full px-3 py-1 text-sm transition ${
-      active ? "bg-brand-600 text-white" : "bg-stone-100 text-stone-600 hover:bg-stone-200"
-    }`;
   const catLabel = [
     ...activeCats.map((k) => CATEGORIES.find((c) => c.key === k)!.label.toLowerCase()),
     ...activeOrigins.map((k) => ORIGIN_FILTERS.find((o) => o.key === k)!.label.toLowerCase()),
   ].join(" + ");
 
+  // Filter chips (category + origin) rendered inline with the search box by
+  // RecipeGrid. Hrefs are server-computed here so they stay bookmarkable.
+  const categoryChips = [
+    { key: "__all", label: "All", href: allHref, active: !filtering },
+    ...CATEGORIES.map((c) => ({
+      key: c.key,
+      label: c.label,
+      href: catHref(c.key),
+      active: activeCats.includes(c.key),
+    })),
+  ];
+  const originChipData = originChips.map((o) => ({
+    key: o.key,
+    label: o.label,
+    href: originHref(o.key),
+    active: activeOrigins.includes(o.key),
+  }));
+
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">My Recipes</h1>
-        <form className="flex gap-2">
-          <input
-            name="q"
-            defaultValue={query}
-            placeholder="Search title or tag…"
-            className="input max-w-xs"
-          />
-          {activeCats.length ? <input type="hidden" name="cat" value={activeCats.join(",")} /> : null}
-          {activeOrigins.length ? (
-            <input type="hidden" name="origin" value={activeOrigins.join(",")} />
-          ) : null}
-          <button className="btn-secondary">Search</button>
-        </form>
-      </div>
-
-      {/* Filter chips: categories (multi-select, OR) + origin (only when present) */}
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Link href={allHref} className={chipClass(!filtering)}>
-          All
-        </Link>
-        {CATEGORIES.map((c) => (
-          <Link key={c.key} href={catHref(c.key)} className={chipClass(activeCats.includes(c.key))}>
-            {c.label}
-          </Link>
-        ))}
-        {originChips.length ? (
-          <span className="mx-1 self-center text-stone-300" aria-hidden>
-            |
-          </span>
-        ) : null}
-        {originChips.map((o) => (
-          <Link key={o.key} href={originHref(o.key)} className={chipClass(activeOrigins.includes(o.key))}>
-            {o.label}
-          </Link>
-        ))}
       </div>
 
       {showOnboarding ? (
@@ -152,33 +121,22 @@ export default async function RecipesPage({
           </div>
         </div>
       ) : (
-        <>
-          {recipes.length === 0 ? (
-            <p className="mb-4 text-stone-500">
-              No {catLabel ? `${catLabel} ` : ""}recipes
-              {query ? ` match “${query}”` : ""}.
-            </p>
-          ) : (
-            <p className="mb-4 text-sm text-stone-500">
-              {catLabel
-                ? `${recipes.length} ${catLabel} recipe${recipes.length === 1 ? "" : "s"}.`
-                : "Tip: select recipes or grocery lists with the checkboxes to order from Picnic."}
-            </p>
-          )}
-          <RecipeGrid
-            recipes={recipes.map((r) => ({
-              id: r.id,
-              title: r.title,
-              description: r.description,
-              imageUrl: r.imageUrl,
-              tags: r.tags,
-              origin: r.origin,
-              createdAt: r.createdAt.toISOString(),
-              lastOrderedAt: r.lastOrderedAt?.toISOString() ?? null,
-            }))}
-            lists={listCards}
-          />
-        </>
+        <RecipeGrid
+          recipes={recipes.map((r) => ({
+            id: r.id,
+            title: r.title,
+            description: r.description,
+            imageUrl: r.imageUrl,
+            tags: r.tags,
+            origin: r.origin,
+            createdAt: r.createdAt.toISOString(),
+            lastOrderedAt: r.lastOrderedAt?.toISOString() ?? null,
+          }))}
+          lists={listCards}
+          catLabel={catLabel}
+          categoryChips={categoryChips}
+          originChips={originChipData}
+        />
       )}
     </div>
   );

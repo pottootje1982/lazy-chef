@@ -20,65 +20,31 @@ wine). Those are filtered out below; what remains is grouped by severity.
 These are the `butternut squash → conference pears` class: the Dutch search term
 is correct, but the linked product is an unrelated food.
 
-| ingredient (key)                                 | linked product                                        | should be             |
-| ------------------------------------------------ | ----------------------------------------------------- | --------------------- |
-| apricot / apricots / soft apricots               | **Perziken** (peaches)                                | abrikozen             |
-| blackberry                                       | **Blauwe bessen** (blueberries)                       | bramen                |
-| cashew nuts                                      | **Picnic pistachenoten** (pistachios)                 | cashewnoten           |
-| curry leaf / curry leaves                        | **Koriander** (coriander)                             | kerrieblad            |
-| egg yolk                                         | **Soubry Chinese eiermie** (egg _noodles_)            | eidooier / eieren     |
-| fenugreek / fenugreek leaves                     | **BioToday maple syrup**                              | fenegriek             |
-| halibut fillets                                  | **zalmfilet** (salmon)                                | heilbot               |
-| lacinato kale                                    | **Platte peterselie** (parsley)                       | palmkool / boerenkool |
-| laurierblaadje(s) (bay leaf)                     | **Verstegen basilicum** (basil)                       | laurier               |
-| lemon zest                                       | **Galbani mozzarella geraspt** (grated mozzarella!)   | citroenrasp           |
-| mace                                             | **Picnic aluminiumfolie** (foil — "foelie" homograph) | foelie (spice)        |
-| mustard powder                                   | **Verstegen chilipoeder**                             | mosterdpoeder         |
-| asafoetida                                       | **Verstegen chilipoeder**                             | asafoetida/ ventjes   |
-| heaped curry powder                              | **Verstegen chilipoeder**                             | kerriepoeder          |
-| puy lentils                                      | **Bonduelle Franse sperzieboontjes** (green beans)    | puy linzen            |
-| savoy cabbage                                    | **Bloemkool** (cauliflower)                           | savooiekool           |
-| tilapia fillets                                  | **Zoete aardappelen** (sweet potatoes)                | tilapia               |
-| limoenen (limes)                                 | **Bio citroenen** (lemons)                            | limoenen              |
-| cilantro-leaves stems                            | **Maza hoemoes** (hummus)                             | koriander             |
-| thyme / thyme leaves / thyme oregano / few thyme | **Verstegen rozemarijn** (rosemary)                   | tijm                  |
-| oyster sauce                                     | **woksaus hoisin**                                    | oestersaus            |
-| worcestershire / worcestershire sauce            | **woksaus hoisin**                                    | worcestersaus         |
-| dark soy sauce / light soy sauce                 | **woksaus hoisin**                                    | sojasaus              |
+| ingredient (key)                                 | linked product                                        | should be           |
+| ------------------------------------------------ | ----------------------------------------------------- | ------------------- |
+| mace                                             | **Picnic aluminiumfolie** (foil — "foelie" homograph) | foelie (spice)      |
+| mustard powder                                   | **Verstegen chilipoeder**                             | mosterdpoeder       |
+| asafoetida                                       | **Verstegen chilipoeder**                             | asafoetida/ ventjes |
+| heaped curry powder                              | **Verstegen chilipoeder**                             | kerriepoeder        |
+| puy lentils                                      | **Bonduelle Franse sperzieboontjes** (green beans)    | puy linzen          |
+| savoy cabbage                                    | **Bloemkool** (cauliflower)                           | savooiekool         |
+| tilapia fillets                                  | **Zoete aardappelen** (sweet potatoes)                | tilapia             |
+| limoenen (limes)                                 | **Bio citroenen** (lemons)                            | limoenen            |
+| cilantro-leaves stems                            | **Maza hoemoes** (hummus)                             | koriander           |
+| thyme / thyme leaves / thyme oregano / few thyme | **Verstegen rozemarijn** (rosemary)                   | tijm                |
+| oyster sauce                                     | **woksaus hoisin**                                    | oestersaus          |
+| worcestershire / worcestershire sauce            | **woksaus hoisin**                                    | worcestersaus       |
+| dark soy sauce / light soy sauce                 | **woksaus hoisin**                                    | sojasaus            |
 
 ## B. Probable unintended substitution (defensible, but verify)
 
-| ingredient (key)                                        | linked product                           | note                   |
-| ------------------------------------------------------- | ---------------------------------------- | ---------------------- |
-| chicken stock cubes                                     | **groentebouillon** (vegetable bouillon) | chicken vs veg         |
-| marjoram                                                | **Verstegen oregano**                    | close herb             |
-| sage / sage leaves                                      | **Italiaanse kruidenmix**                | herb mix, not sage     |
-| redcurrant jelly                                        | **aardbeien confiture** (strawberry jam) |                        |
-| romaine lettuce                                         | **Picnic rucola** (arugula)              |                        |
-| salad                                                   | **Picnic rucola**                        | generic "salad"        |
-| smoked haddock                                          | **kabeljauwhaas** (cod)                  | different fish         |
-| shrimp paste                                            | **Go-Tan vissaus** (fish sauce)          |                        |
-| kruisbessen (gooseberries)                              | **Physalis-bessen**                      |                        |
-| pecorino                                                | **parmigiano reggiano**                  | hard-cheese swap       |
-| eetl parmezaanse kaas (parmesan)                        | **Picnic pecorino 35+**                  | reverse of above       |
-| boneless skinless chicken breast(s) / chicken breast(s) | **kipdijfilets** (chicken _thigh_)       | recurring breast→thigh |
-| turkey thigh mince                                      | **kipdijfilets** (chicken)               | turkey→chicken         |
-| venison steaks                                          | **Premium biefstuk** (beef)              | venison→beef           |
-| ounces coconut milk                                     | **Oatly haverdrink kokos** (oat drink)   | not coconut milk       |
-| clams                                                   | **Kokkels** (cockles)                    | shellfish swap         |
-| crab picked                                             | **surimi sticks**                        | imitation crab         |
-| strong bread flour                                      | **farina '00'** (pizza flour)            |                        |
-| shallot                                                 | **Merkloos rode uien** (red onion)       | shallot→red onion      |
-| kidney beans                                            | **Hak chilibonen**                       | seasoned beans         |
+| ingredient (key) | linked product | note |
+| ---------------- | -------------- | ---- |
 
 ## C. Junk / non-ingredient lines that got a product (should be unlinked)
 
-| line                        | linked product                      |
-| --------------------------- | ----------------------------------- |
-| `4 personen` / `personen`   | **Always inlegkruisjes large** (!!) |
-| `ingrediënten`              | Redband smikkels                    |
-| `keukenmachine` (appliance) | Aardappelstamper                    |
-| `kraanwater` (tap water)    | Solan de Cabras mineraalwater       |
+| line | linked product |
+| ---- | -------------- |
 
 ---
 
