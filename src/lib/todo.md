@@ -1,6 +1,1 @@
-- groceries list should be orderable from groceries page
-- search client side
-- Because of a former bug that caused wrong ingredient-->product translations, and because of auto-mapping where the first product was picked by default, there are some wrong mappings. I'd like you to make a list of all productmappings that seem weird:
-  -- either would lead to high product count
-  -- Or do not match, e.g. 'Butternut squash' --> 'conference pears' (this was caused by the ingredient translation bug, I already fixed this instance)
-- react on command/ctrl-s
+- allow ordering on other supermarkets like Jumbo or AH
