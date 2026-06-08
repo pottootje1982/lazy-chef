@@ -93,6 +93,76 @@ function findRecipeNode(json: unknown): Record<string, unknown> | null {
   return null;
 }
 
+// Drop a trailing/leading site-name suffix from a page <title> / og:title,
+// e.g. "Ovenschotel met prei en zalm | FOOD&YOU" → "Ovenschotel met prei en zalm".
+export function cleanTitle(title: string, siteName?: string): string {
+  let t = title.trim();
+  if (siteName) {
+    const s = siteName.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    t = t
+      .replace(new RegExp(`\\s*[|\\-–—:·]\\s*${s}\\s*$`, "i"), "")
+      .replace(new RegExp(`^\\s*${s}\\s*[|\\-–—:·]\\s*`, "i"), "");
+  }
+  return t.trim() || title.trim();
+}
+
+// Section headings that introduce the ingredient / instruction lists on recipe
+// blogs that lack Recipe JSON-LD (very common on Dutch sites).
+const INGREDIENT_MARKER =
+  /(ingredi[eë]nt|wat (heb|je) (je )?nodig|benodigdheden|boodschappen|nodig hebt|ingredients?|what you('ll| will)? need|you('ll| will)? need)/i;
+const INSTRUCTION_MARKER =
+  /(bereidingswijze|bereiding|werkwijze|zo maak je|aan de slag|stappenplan|stappen|instructies?|directions?|method|preparation|how to make|steps?)/i;
+
+// Fallback recipe extraction from the article body for pages without Recipe
+// JSON-LD. Looks for "ingredients"/"directions" headings followed by a list.
+export function extractFromHtml($: cheerio.CheerioAPI): {
+  ingredients: string[];
+  instructions: string[];
+  servings?: string;
+} {
+  // Prefer the main content container to avoid matching nav/footer lists.
+  const root = $(
+    '[data-widget_type="theme-post-content.default"], .entry-content, .post-content, .elementor-widget-theme-post-content, article, main',
+  ).first();
+  const scope = root.length ? root : $("body");
+
+  // Items of the first <ul>/<ol> that follows a heading/paragraph matching the
+  // marker (searched within the content scope only).
+  const listItemsAfter = (marker: RegExp): string[] => {
+    let found: string[] = [];
+    scope.find("p, h2, h3, h4, h5, h6, strong, b").each((_, el) => {
+      if (found.length) return;
+      const text = $(el).text().replace(/\s+/g, " ").trim();
+      if (!text || text.length > 60 || !marker.test(text)) return;
+      // For an inline match (e.g. <strong> in a <p>), traverse from the
+      // block-level ancestor so the following <ul>/<ol> is a sibling.
+      const tag = (el as { tagName?: string }).tagName?.toLowerCase() ?? "";
+      const block = ["strong", "b", "span", "em"].includes(tag)
+        ? ($(el).closest("p, h2, h3, h4, h5, h6, div, li").get(0) ?? el)
+        : el;
+      const items = $(block)
+        .nextAll("ul, ol")
+        .first()
+        .children("li")
+        .map((_i, li) => $(li).text().replace(/\s+/g, " ").trim())
+        .get()
+        .filter(Boolean);
+      if (items.length) found = items;
+    });
+    return found;
+  };
+
+  const ingredients = listItemsAfter(INGREDIENT_MARKER);
+  const instructions = listItemsAfter(INSTRUCTION_MARKER);
+
+  const text = scope.text().replace(/\s+/g, " ");
+  const nl = text.match(/(\d+)\s*persone?n/i);
+  const en = text.match(/serves?\s*(\d+)|(\d+)\s*servings?/i);
+  const servings = nl ? `${nl[1]} personen` : en ? (en[1] ?? en[2]) : undefined;
+
+  return { ingredients, instructions, servings };
+}
+
 function parseJsonLd($: cheerio.CheerioAPI): Record<string, unknown> | null {
   const scripts = $('script[type="application/ld+json"]').toArray();
   for (const el of scripts) {
@@ -120,16 +190,32 @@ export async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     throw new Error("Only http and https URLs are supported.");
   }
 
-  const res = await fetch(url, {
-    headers: {
-      // Some sites block requests without a browser-like UA.
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml",
-    },
-    // Avoid hanging forever on slow sites; kept under the serverless 10s limit.
-    signal: AbortSignal.timeout(9000),
-  });
+  // Some sites intermittently reset the connection; one retry makes import far
+  // more reliable. The route allows up to 60s, so a 15s per-try budget is safe.
+  async function fetchHtml(): Promise<Response> {
+    return fetch(url, {
+      headers: {
+        // Some sites block requests without a browser-like UA.
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      redirect: "follow",
+      signal: AbortSignal.timeout(15000),
+    });
+  }
+
+  let res: Response;
+  try {
+    res = await fetchHtml();
+  } catch {
+    // Transient network/TLS failure — retry once before giving up.
+    try {
+      res = await fetchHtml();
+    } catch {
+      throw new Error("Couldn't reach that page — check the link and try again.");
+    }
+  }
 
   if (!res.ok) {
     throw new Error(`Could not fetch the page (HTTP ${res.status}).`);
@@ -162,12 +248,29 @@ export async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
     if (recipe.ingredients.length || recipe.instructions.length) return recipe;
   }
 
-  // Fallback: OpenGraph metadata only — user can fill in the rest.
+  const siteName = $('meta[property="og:site_name"]').attr("content") ?? undefined;
   const ogTitle =
     $('meta[property="og:title"]').attr("content") ?? $("title").first().text().trim();
   const ogImage = $('meta[property="og:image"]').attr("content");
   const ogDesc = $('meta[property="og:description"]').attr("content");
 
+  // Fallback 1: parse the article body (recipe blogs without Recipe JSON-LD,
+  // common on Dutch sites — ingredients/steps as headed <ul>/<ol> lists).
+  const body = extractFromHtml($);
+  if (body.ingredients.length || body.instructions.length) {
+    return {
+      title: cleanTitle(asString(node?.name) ?? ogTitle ?? "Untitled recipe", siteName),
+      description: ogDesc ?? undefined,
+      imageUrl: extractImage(node?.image) ?? ogImage ?? undefined,
+      sourceUrl: url,
+      servings: body.servings,
+      ingredients: body.ingredients,
+      instructions: body.instructions,
+      tags: [],
+    };
+  }
+
+  // Fallback 2: OpenGraph metadata only — user can fill in the rest.
   if (!ogTitle) {
     throw new Error(
       "Couldn't find structured recipe data on that page. Try entering it manually.",
@@ -175,7 +278,7 @@ export async function scrapeRecipe(url: string): Promise<ScrapedRecipe> {
   }
 
   return {
-    title: ogTitle,
+    title: cleanTitle(ogTitle, siteName),
     description: ogDesc ?? undefined,
     imageUrl: ogImage ?? undefined,
     sourceUrl: url,
