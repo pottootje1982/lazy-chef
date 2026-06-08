@@ -86,6 +86,11 @@ export async function aggregateOrder(
   for (const recipe of recipes) {
     // Optional per-ingredient quantity overrides set on the recipe detail page.
     const overrides = (recipe.quantityOverrides ?? {}) as Record<string, number>;
+    // `recipeCount` should count distinct recipes referencing a product, not
+    // ingredient lines — otherwise two lines of ONE recipe that map to the same
+    // product (e.g. "crème Chantilly" + "Chantilly cream (see left)") look like
+    // it's used across multiple recipes and get deselected by default.
+    const countedInThisRecipe = new Set<string>();
     const rows = recipe.ingredients.map((raw): OrderRow => {
       const key = normalizeIngredient(raw);
       if (unavailableSet.has(key) && !unavailable.has(key)) unavailable.set(key, raw.trim());
@@ -96,10 +101,12 @@ export async function aggregateOrder(
       }
       const ov = overrides[key];
       const n = typeof ov === "number" ? ov : defaultOrderCount(raw, m.unitQuantity);
+      const firstInRecipe = !countedInThisRecipe.has(m.picnicId);
+      countedInThisRecipe.add(m.picnicId);
       const existing = cart.get(m.picnicId);
       if (existing) {
         existing.quantity += n;
-        existing.recipeCount += 1;
+        if (firstInRecipe) existing.recipeCount += 1;
       } else {
         cart.set(m.picnicId, {
           picnicId: m.picnicId,
@@ -163,9 +170,9 @@ export async function aggregateOrder(
       quantity: it.quantity,
       recipeCount: it.recipeCount,
       isStaple,
-      // Grocery items are intentionally curated → default on. Recipe-only
-      // products default on unless a staple or used in more than one recipe.
-      defaultSelected: it.fromGrocery ? true : !isStaple && it.recipeCount < 2,
+      // Grocery items are intentionally curated → default on. Recipe products
+      // default on unless they're a pantry staple (you usually have those).
+      defaultSelected: it.fromGrocery ? true : !isStaple,
     };
   });
 
