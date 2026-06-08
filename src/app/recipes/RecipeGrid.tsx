@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
 import {
   useSelectionSet,
   SELECTED_RECIPES_KEY,
@@ -43,8 +44,8 @@ type Sort = { key: SortKey; dir: "asc" | "desc" };
 const VIEW_KEY = "rm.recipeView";
 const SORT_KEY = "rm.recipeSort";
 
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
+function fmtDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale === "nl" ? "nl-NL" : "en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -65,6 +66,9 @@ export default function RecipeGrid({
   originChips: FilterChip[];
 }) {
   const router = useRouter();
+  const t = useTranslations("recipes");
+  const tCommon = useTranslations("common");
+  const locale = useLocale();
   const { ids: recipeSel, toggle: toggleRecipe, clear: clearRecipes } =
     useSelectionSet(SELECTED_RECIPES_KEY);
   const { ids: listSel, toggle: toggleList, clear: clearLists } =
@@ -194,13 +198,13 @@ export default function RecipeGrid({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search title or tag…"
+              placeholder={t("searchPlaceholder")}
               className="input w-48 pr-8"
             />
             {query ? (
               <button
                 onClick={() => setQuery("")}
-                aria-label="Clear search"
+                aria-label={t("clearSearch")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700"
               >
                 ✕
@@ -214,7 +218,7 @@ export default function RecipeGrid({
       {lists.length > 0 ? (
         <div className="mb-6">
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-stone-400">
-            Weekly groceries
+            {t("weeklyGroceries")}
           </h2>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {lists.map((list) => {
@@ -231,13 +235,13 @@ export default function RecipeGrid({
                     checked={isSelected}
                     onChange={() => toggleList(list.id)}
                     className="h-4 w-4 flex-none accent-brand-600"
-                    title="Select for ordering"
+                    title={t("selectForOrdering")}
                   />
                   <span className="text-xl">🛒</span>
                   <Link href="/groceries" className="min-w-0 flex-1">
                     <p className="truncate font-medium">{list.name}</p>
                     <p className="text-xs text-stone-500">
-                      {list.itemCount} product{list.itemCount === 1 ? "" : "s"}
+                      {t("productCount", { count: list.itemCount })}
                     </p>
                   </Link>
                 </div>
@@ -251,10 +255,12 @@ export default function RecipeGrid({
       {recipes.length > 0 ? (
         <p className="mb-4 text-sm text-stone-500">
           {filtered.length === 0
-            ? `No ${catLabel ? `${catLabel} ` : ""}recipes${query ? ` match “${query}”` : ""}.`
+            ? query
+              ? t("noMatchQuery", { label: catLabel, query })
+              : t("noMatchPlain", { label: catLabel })
             : query || catLabel
-              ? `${filtered.length} ${catLabel ? `${catLabel} ` : ""}recipe${filtered.length === 1 ? "" : "s"}.`
-              : "Tip: select recipes or grocery lists with the checkboxes to order from Picnic."}
+              ? t("countLabeled", { count: filtered.length, label: catLabel })
+              : t("orderTip")}
         </p>
       ) : null}
 
@@ -266,13 +272,13 @@ export default function RecipeGrid({
               onClick={() => changeView("grid")}
               className={`px-3 py-1 ${view === "grid" ? "bg-brand-600 text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
             >
-              Grid
+              {t("grid")}
             </button>
             <button
               onClick={() => changeView("list")}
               className={`border-l border-stone-200 px-3 py-1 ${view === "list" ? "bg-brand-600 text-white" : "bg-white text-stone-600 hover:bg-stone-100"}`}
             >
-              List
+              {t("list")}
             </button>
           </div>
         </div>
@@ -283,18 +289,18 @@ export default function RecipeGrid({
           {/* Sortable header */}
           <div className="flex items-center gap-3 border-b border-stone-200 px-2 pb-2 text-xs font-medium text-stone-400">
             <span className="h-4 w-4 flex-none" />
-            <span className="min-w-0 flex-1">Recipe</span>
+            <span className="min-w-0 flex-1">{t("recipeColumn")}</span>
             <button
               onClick={() => toggleSort("created")}
               className="w-24 flex-none text-right hover:text-stone-700"
             >
-              Created{arrow("created")}
+              {t("createdColumn")}{arrow("created")}
             </button>
             <button
               onClick={() => toggleSort("ordered")}
               className="w-28 flex-none text-right hover:text-stone-700"
             >
-              Last ordered{arrow("ordered")}
+              {t("lastOrderedColumn")}{arrow("ordered")}
             </button>
           </div>
           <ul className="divide-y divide-stone-100">
@@ -310,21 +316,21 @@ export default function RecipeGrid({
                     checked={isSelected}
                     onChange={() => toggleRecipe(recipe.id)}
                     className="h-4 w-4 flex-none accent-brand-600"
-                    title="Select for ordering"
+                    title={t("selectForOrdering")}
                   />
                   <Link href={`/recipes/${recipe.id}`} className="min-w-0 flex-1 truncate text-sm font-medium hover:text-brand-600">
                     {recipe.title}
                   </Link>
                   {recipe.origin === "scan" ? (
-                    <span className="flex-none" title="Imported by scan">
+                    <span className="flex-none" title={t("scannedTitle")}>
                       📷
                     </span>
                   ) : null}
                   <span className="w-24 flex-none text-right text-xs text-stone-500">
-                    {fmtDate(recipe.createdAt)}
+                    {fmtDate(recipe.createdAt, locale)}
                   </span>
                   <span className="w-28 flex-none text-right text-xs text-stone-500">
-                    {recipe.lastOrderedAt ? fmtDate(recipe.lastOrderedAt) : "Never"}
+                    {recipe.lastOrderedAt ? fmtDate(recipe.lastOrderedAt, locale) : t("never")}
                   </span>
                 </li>
               );
@@ -344,7 +350,7 @@ export default function RecipeGrid({
               >
                 <label
                   className="absolute left-2 top-2 z-10 flex h-7 w-7 cursor-pointer items-center justify-center rounded-md border border-stone-300 bg-white/90 shadow-sm"
-                  title="Select for ordering"
+                  title={t("selectForOrdering")}
                 >
                   <input
                     type="checkbox"
@@ -371,7 +377,7 @@ export default function RecipeGrid({
                     {recipe.origin === "scan" || recipe.tags.length ? (
                       <div className="mt-3 flex flex-wrap gap-1">
                         {recipe.origin === "scan" ? (
-                          <span className={SCANNED_CHIP}>📷 Scanned</span>
+                          <span className={SCANNED_CHIP}>{t("scanned")}</span>
                         ) : null}
                         {recipe.tags.slice(0, 3).map((tag) => (
                           <span
@@ -401,42 +407,43 @@ export default function RecipeGrid({
                 value={planName}
                 onChange={(e) => setPlanName(e.target.value)}
                 maxLength={200}
-                placeholder="Week plan name"
+                placeholder={t("weekPlanName")}
                 className="input min-w-0 flex-1 !py-1.5 text-sm"
               />
               <button type="submit" disabled={savingBusy} className="btn-primary flex-none">
-                {savingBusy ? "Saving…" : "Save plan"}
+                {savingBusy ? tCommon("saving") : t("savePlan")}
               </button>
               <button
                 type="button"
                 onClick={() => setSaving(false)}
                 className="btn-secondary flex-none"
               >
-                Cancel
+                {tCommon("cancel")}
               </button>
             </form>
           ) : (
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-stone-600">
-                {[
-                  recipeSel.size ? `${recipeSel.size} recipe${recipeSel.size > 1 ? "s" : ""}` : null,
-                  listSel.size ? `${listSel.size} list${listSel.size > 1 ? "s" : ""}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(" + ")}{" "}
-                selected
+                {t("selectedSummary", {
+                  summary: [
+                    recipeSel.size ? t("recipesSelected", { count: recipeSel.size }) : null,
+                    listSel.size ? t("listsSelected", { count: listSel.size }) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" + "),
+                })}
               </span>
               <div className="flex flex-wrap justify-end gap-2">
                 <button onClick={clear} className="btn-secondary">
-                  Clear
+                  {t("clear")}
                 </button>
                 {recipeSel.size > 0 ? (
                   <button onClick={startSavePlan} className="btn-secondary">
-                    Save as week plan
+                    {t("saveAsWeekPlan")}
                   </button>
                 ) : null}
                 <button onClick={order} className="btn-primary">
-                  Order with Picnic →
+                  {t("orderWithPicnic")}
                 </button>
               </div>
             </div>

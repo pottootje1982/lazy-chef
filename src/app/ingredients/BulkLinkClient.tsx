@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   ignoreIngredient,
   unignoreIngredient,
@@ -55,9 +56,10 @@ function euro(cents: number | null): string | null {
 }
 
 function RecipeLinks({ recipes }: { recipes: { id: string; title: string }[] }) {
+  const t = useTranslations("ingredients");
   return (
     <span className="text-xs text-stone-400">
-      in{" "}
+      {t("inRecipes")}{" "}
       {recipes.slice(0, 5).map((r, i) => (
         <span key={r.id}>
           {i > 0 ? ", " : ""}
@@ -69,7 +71,7 @@ function RecipeLinks({ recipes }: { recipes: { id: string; title: string }[] }) 
           </Link>
         </span>
       ))}
-      {recipes.length > 5 ? ` +${recipes.length - 5} more` : ""}
+      {recipes.length > 5 ? t("moreRecipes", { count: recipes.length - 5 }) : ""}
     </span>
   );
 }
@@ -83,6 +85,8 @@ function LinkedRow({
   onUnlink: () => void;
   onChanged: (p: SearchProduct) => void;
 }) {
+  const t = useTranslations("ingredients");
+  const tErr = useTranslations("errors");
   const [editing, setEditing] = useState(false);
   return (
     <li className="rounded-lg border border-green-200 bg-green-50/60 p-3">
@@ -113,10 +117,10 @@ function LinkedRow({
             onClick={() => setEditing((v) => !v)}
             className="text-xs text-stone-500 hover:text-brand-600"
           >
-            {editing ? "Close" : "Change"}
+            {editing ? t("close") : t("change")}
           </button>
           <button onClick={onUnlink} className="text-xs text-stone-400 hover:text-red-600">
-            Unlink
+            {t("unlink")}
           </button>
         </div>
       </div>
@@ -127,14 +131,14 @@ function LinkedRow({
           initialQuery={item.prefill || item.key}
           autoSearch
           action={{
-            label: "Link",
+            label: t("link"),
             onPick: async (p, query) => {
               const res = await fetch("/api/mappings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ rawIngredient: item.raw, translated: query || item.raw, product: p }),
               });
-              if (!res.ok) return (await res.json()).error ?? "Could not link.";
+              if (!res.ok) return (await res.json()).error ?? tErr("linkFailed");
               onChanged(p);
               setEditing(false);
             },
@@ -146,6 +150,7 @@ function LinkedRow({
 }
 
 function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () => void }) {
+  const t = useTranslations("ingredients");
   return (
     <li className="flex items-center gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
       <div className="min-w-0 flex-1">
@@ -158,7 +163,7 @@ function IgnoredRow({ item, onUnignore }: { item: IgnoredItem; onUnignore: () =>
         onClick={onUnignore}
         className="flex-none rounded-full bg-stone-200 px-2.5 py-1 text-xs text-stone-600 hover:bg-stone-300"
       >
-        Un-ignore
+        {t("unignore")}
       </button>
     </li>
   );
@@ -171,9 +176,10 @@ function NotAvailableRow({
   item: NotAvailableItem;
   onMarkAvailable: () => void;
 }) {
+  const t = useTranslations("ingredients");
   return (
     <li className="flex items-center gap-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
-      <span className="flex-none text-amber-500" title="Buy elsewhere">🛒</span>
+      <span className="flex-none text-amber-500" title={t("buyElsewhere")}>🛒</span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-2">
           <span className="text-sm font-medium text-amber-900">{item.raw}</span>
@@ -184,7 +190,7 @@ function NotAvailableRow({
         onClick={onMarkAvailable}
         className="flex-none rounded-full bg-amber-200 px-2.5 py-1 text-xs text-amber-800 hover:bg-amber-300"
       >
-        Mark available
+        {t("markAvailable")}
       </button>
     </li>
   );
@@ -201,6 +207,8 @@ function Row({
   onIgnore: () => void;
   onNotAvailable: () => void;
 }) {
+  const t = useTranslations("ingredients");
+  const tErr = useTranslations("errors");
   return (
     <li className="rounded-lg border border-stone-200 p-3">
       <div className="flex items-baseline gap-2">
@@ -210,17 +218,17 @@ function Row({
         </div>
         <button
           onClick={onNotAvailable}
-          title="Can't be bought at the grocer — buy elsewhere"
+          title={t("notAvailableTitle")}
           className="flex-none text-xs text-stone-400 hover:text-amber-700"
         >
-          Not available
+          {t("viewUnavailable")}
         </button>
         <button
           onClick={onIgnore}
-          title="Hide this junk line"
+          title={t("ignoreTitle")}
           className="flex-none text-xs text-stone-400 hover:text-red-600"
         >
-          Ignore
+          {t("ignore")}
         </button>
       </div>
 
@@ -229,14 +237,14 @@ function Row({
         words={item.words}
         initialQuery={item.prefill || item.words.join(" ")}
         action={{
-          label: "Link",
+          label: t("link"),
           onPick: async (p, query) => {
             const res = await fetch("/api/mappings", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ rawIngredient: item.raw, translated: query || item.raw, product: p }),
             });
-            if (!res.ok) return (await res.json()).error ?? "Could not link.";
+            if (!res.ok) return (await res.json()).error ?? tErr("linkFailed");
             onLinked(p);
           },
         }}
@@ -256,6 +264,7 @@ export default function BulkLinkClient({
   ignored: IgnoredItem[];
   unavailable: NotAvailableItem[];
 }) {
+  const t = useTranslations("ingredients");
   const [view, setView] = useState<View>("all");
   const [filter, setFilter] = useState("");
   // Live session moves: dismissed keys drop out of the unlinked list; the other
@@ -439,11 +448,11 @@ export default function BulkLinkClient({
   const unavailableShown = unavailableAll.filter((i) => matches(i.raw, i.key));
 
   const chips: { v: View; label: string; n: number }[] = [
-    { v: "all", label: "All", n: unlinkedAll.length + linkedAll.length },
-    { v: "unlinked", label: "Unlinked", n: unlinkedAll.length },
-    { v: "linked", label: "Linked", n: linkedAll.length },
-    { v: "unavailable", label: "Not available", n: unavailableAll.length },
-    { v: "ignored", label: "Ignored", n: ignoredAll.length },
+    { v: "all", label: t("viewAll"), n: unlinkedAll.length + linkedAll.length },
+    { v: "unlinked", label: t("viewUnlinked"), n: unlinkedAll.length },
+    { v: "linked", label: t("viewLinked"), n: linkedAll.length },
+    { v: "unavailable", label: t("viewUnavailable"), n: unavailableAll.length },
+    { v: "ignored", label: t("viewIgnored"), n: ignoredAll.length },
   ];
 
   const showUnlinked = view === "all" || view === "unlinked";
@@ -472,7 +481,7 @@ export default function BulkLinkClient({
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          placeholder="Filter ingredients or products…"
+          placeholder={t("filterPlaceholder")}
           className="input max-w-xs !py-1.5 text-sm"
         />
       </div>
@@ -480,7 +489,7 @@ export default function BulkLinkClient({
       {showUnlinked ? (
         <section>
           {view === "all" ? (
-            <h2 className="mb-2 text-sm font-semibold text-stone-500">Unlinked</h2>
+            <h2 className="mb-2 text-sm font-semibold text-stone-500">{t("headerUnlinked")}</h2>
           ) : null}
           <ul className="space-y-2">
             {unlinkedShown.map((item) => (
@@ -495,7 +504,7 @@ export default function BulkLinkClient({
           </ul>
           {unlinkedShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
-              {unlinkedAll.length === 0 ? "🎉 Everything is linked." : `No unlinked ingredients match “${filter}”.`}
+              {unlinkedAll.length === 0 ? t("everythingLinked") : t("noUnlinkedMatch", { filter })}
             </p>
           ) : null}
         </section>
@@ -504,7 +513,7 @@ export default function BulkLinkClient({
       {showLinked ? (
         <section className={showUnlinked ? "mt-6" : ""}>
           {view === "all" ? (
-            <h2 className="mb-2 text-sm font-semibold text-stone-500">Linked</h2>
+            <h2 className="mb-2 text-sm font-semibold text-stone-500">{t("headerLinked")}</h2>
           ) : null}
           <ul className="space-y-2">
             {linkedShown.map((item) => (
@@ -518,7 +527,7 @@ export default function BulkLinkClient({
           </ul>
           {linkedShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
-              {linkedAll.length === 0 ? "No linked ingredients yet." : `No linked ingredients match “${filter}”.`}
+              {linkedAll.length === 0 ? t("noLinkedYet") : t("noLinkedMatch", { filter })}
             </p>
           ) : null}
         </section>
@@ -526,10 +535,7 @@ export default function BulkLinkClient({
 
       {showUnavailable ? (
         <section>
-          <p className="mb-2 text-sm text-stone-500">
-            These can&apos;t be bought at the grocer — buy them elsewhere. They appear on each
-            order that uses them.
-          </p>
+          <p className="mb-2 text-sm text-stone-500">{t("unavailableIntro")}</p>
           <ul className="space-y-2">
             {unavailableShown.map((item) => (
               <NotAvailableRow
@@ -541,9 +547,7 @@ export default function BulkLinkClient({
           </ul>
           {unavailableShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
-              {unavailableAll.length === 0
-                ? "Nothing flagged. Use “Not available” on an ingredient that the grocer doesn’t sell."
-                : `No items match “${filter}”.`}
+              {unavailableAll.length === 0 ? t("nothingUnavailable") : t("noItemsMatch", { filter })}
             </p>
           ) : null}
         </section>
@@ -558,9 +562,7 @@ export default function BulkLinkClient({
           </ul>
           {ignoredShown.length === 0 ? (
             <p className="py-4 text-sm text-stone-400">
-              {ignoredAll.length === 0
-                ? "Nothing ignored. Use “Ignore” on a junk line to hide it here."
-                : `No ignored ingredients match “${filter}”.`}
+              {ignoredAll.length === 0 ? t("nothingIgnored") : t("noIgnoredMatch", { filter })}
             </p>
           ) : null}
         </section>

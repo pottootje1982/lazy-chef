@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { signOutAction } from "@/lib/auth-actions";
 
 type NavLink = { href: string; label: string; primary?: boolean };
@@ -44,6 +45,8 @@ export default function NavBar({
   isGuest: boolean;
   displayName: string;
 }) {
+  const t = useTranslations("nav");
+  const ta = useTranslations("account");
   const [open, setOpen] = useState(false); // mobile hamburger
   const [menuOpen, setMenuOpen] = useState(false); // desktop account dropdown
   const menuRef = useRef<HTMLDivElement>(null);
@@ -77,14 +80,14 @@ export default function NavBar({
   }, [menuOpen]);
 
   const links: NavLink[] = [
-    { href: "/recipes", label: "My Recipes" },
-    { href: "/groceries", label: "Groceries" },
+    { href: "/recipes", label: t("myRecipes") },
+    { href: "/groceries", label: t("groceries") },
     // Write actions are hidden for the read-only guest account.
     ...(isGuest
       ? []
       : [
-          { href: "/recipes/import", label: "Import" },
-          { href: "/recipes/new", label: "+ New", primary: true },
+          { href: "/recipes/import", label: t("import") },
+          { href: "/recipes/new", label: t("new"), primary: true },
         ]),
   ];
 
@@ -92,10 +95,10 @@ export default function NavBar({
   const accountLinks: NavLink[] = isGuest
     ? []
     : [
-        { href: "/week-plans", label: "Week plans" },
-        { href: "/orders", label: "Orders" },
-        { href: "/ingredients", label: "Link recipe ingredients to products" },
-        { href: "/pantry", label: "Pantry staples" },
+        { href: "/week-plans", label: ta("weekPlans") },
+        { href: "/orders", label: ta("orders") },
+        { href: "/ingredients", label: ta("linkIngredients") },
+        { href: "/pantry", label: ta("pantryStaples") },
       ];
 
   return (
@@ -120,7 +123,7 @@ export default function NavBar({
 
         <div className="flex items-center gap-1 border-l border-stone-200 pl-3">
           {!isGuest ? (
-            <Link href="/settings" title="Settings" aria-label="Settings" className={iconBtn}>
+            <Link href="/settings" title={t("settings")} aria-label={t("settings")} className={iconBtn}>
               <GearIcon />
             </Link>
           ) : null}
@@ -131,7 +134,7 @@ export default function NavBar({
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
                 title={displayName}
-                aria-label="Account menu"
+                aria-label={t("accountMenu")}
                 aria-haspopup="menu"
                 aria-expanded={menuOpen}
                 className={iconBtn}
@@ -161,7 +164,7 @@ export default function NavBar({
           )}
 
           <form action={signOutAction}>
-            <button type="submit" title="Sign out" aria-label="Sign out" className={iconBtn}>
+            <button type="submit" title={t("signOut")} aria-label={t("signOut")} className={iconBtn}>
               <SignOutIcon />
             </button>
           </form>
@@ -172,7 +175,7 @@ export default function NavBar({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "Close menu" : "Open menu"}
+        aria-label={open ? t("closeMenu") : t("openMenu")}
         aria-expanded={open}
         className="flex h-9 w-9 items-center justify-center rounded-lg text-stone-700 hover:bg-stone-100 sm:hidden"
       >
@@ -211,7 +214,7 @@ export default function NavBar({
                   onClick={() => setOpen(false)}
                   className="py-2 text-sm text-stone-700"
                 >
-                  Settings
+                  {t("settings")}
                 </Link>
                 {accountLinks.map((l) => (
                   <Link
@@ -230,7 +233,7 @@ export default function NavBar({
               <span className="text-sm text-stone-500">{displayName}</span>
               <form action={signOutAction}>
                 <button className="text-sm font-medium text-stone-600 hover:text-stone-900">
-                  Sign out
+                  {t("signOut")}
                 </button>
               </form>
             </div>

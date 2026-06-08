@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import type { FormState } from "@/app/actions";
 import { RECIPE_CATEGORIES } from "@/lib/categories";
 
@@ -25,9 +26,10 @@ type Action = (prev: FormState, formData: FormData) => Promise<FormState>;
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const tc = useTranslations("common");
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Saving…" : label}
+      {pending ? tc("saving") : label}
     </button>
   );
 }
@@ -46,6 +48,7 @@ function ListField({
   placeholder: string;
   multiline?: boolean;
 }) {
+  const t = useTranslations("recipeForm");
   const [items, setItems] = useState<string[]>(initial.length ? initial : [""]);
 
   const update = (i: number, value: string) =>
@@ -83,7 +86,7 @@ function ListField({
               type="button"
               onClick={() => remove(i)}
               className="mt-1 px-2 text-stone-400 hover:text-red-500"
-              aria-label="Remove"
+              aria-label={t("remove")}
             >
               ✕
             </button>
@@ -91,7 +94,7 @@ function ListField({
         ))}
       </div>
       <button type="button" onClick={add} className="mt-2 text-sm text-brand-600 hover:underline">
-        + Add {label.toLowerCase()}
+        {t("addItem", { label: label.toLowerCase() })}
       </button>
     </div>
   );
@@ -106,6 +109,8 @@ export default function RecipeForm({
   initial: RecipeFormValues;
   submitLabel: string;
 }) {
+  const t = useTranslations("recipeForm");
+  const tc = useTranslations("categories");
   const [state, formAction] = useActionState(action, undefined);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -136,13 +141,13 @@ export default function RecipeForm({
       <div className="card space-y-4 p-5">
         <div>
           <label className="label" htmlFor="title">
-            Title
+            {t("title")}
           </label>
           <input id="title" name="title" defaultValue={initial.title} className="input" required />
         </div>
         <div>
           <label className="label" htmlFor="description">
-            Description
+            {t("description")}
           </label>
           <textarea
             id="description"
@@ -155,19 +160,19 @@ export default function RecipeForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label className="label" htmlFor="servings">
-              Servings
+              {t("servings")}
             </label>
             <input id="servings" name="servings" defaultValue={initial.servings} className="input" />
           </div>
           <div>
             <label className="label" htmlFor="prepTime">
-              Prep time
+              {t("prepTime")}
             </label>
             <input id="prepTime" name="prepTime" defaultValue={initial.prepTime} className="input" />
           </div>
           <div>
             <label className="label" htmlFor="cookTime">
-              Cook time
+              {t("cookTime")}
             </label>
             <input id="cookTime" name="cookTime" defaultValue={initial.cookTime} className="input" />
           </div>
@@ -175,13 +180,13 @@ export default function RecipeForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="label" htmlFor="imageUrl">
-              Image URL
+              {t("imageUrl")}
             </label>
             <input id="imageUrl" name="imageUrl" defaultValue={initial.imageUrl} className="input" />
           </div>
           <div>
             <label className="label" htmlFor="sourceUrl">
-              Source URL
+              {t("sourceUrl")}
             </label>
             <input
               id="sourceUrl"
@@ -196,24 +201,24 @@ export default function RecipeForm({
       <div className="card p-5">
         <ListField
           name="ingredients"
-          label="Ingredients"
+          label={t("ingredients")}
           initial={initial.ingredients}
-          placeholder="e.g. 200g cherry tomatoes"
+          placeholder={t("ingredientPlaceholder")}
         />
       </div>
 
       <div className="card p-5">
         <ListField
           name="instructions"
-          label="Instructions"
+          label={t("instructions")}
           initial={initial.instructions}
-          placeholder="Describe this step…"
+          placeholder={t("instructionPlaceholder")}
           multiline
         />
       </div>
 
       <div className="card p-5">
-        <span className="label">Categories</span>
+        <span className="label">{t("categories")}</span>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
           {RECIPE_CATEGORIES.map((c) => (
             <label key={c.key} className="flex items-center gap-2 text-sm">
@@ -224,14 +229,14 @@ export default function RecipeForm({
                 defaultChecked={initial.categories.includes(c.key)}
                 className="h-4 w-4 rounded border-stone-300"
               />
-              {c.label}
+              {tc(c.key)}
             </label>
           ))}
         </div>
       </div>
 
       <div className="card p-5">
-        <ListField name="tags" label="Tags" initial={initial.tags} placeholder="e.g. vegetarian" />
+        <ListField name="tags" label={t("tags")} initial={initial.tags} placeholder={t("tagPlaceholder")} />
       </div>
 
       <div className="flex gap-3">

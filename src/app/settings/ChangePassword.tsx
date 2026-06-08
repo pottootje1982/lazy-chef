@@ -2,18 +2,21 @@
 
 import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { changePassword, type PasswordFormState } from "@/lib/auth-actions";
 
 function SubmitButton({ hasPassword }: { hasPassword: boolean }) {
   const { pending } = useFormStatus();
+  const t = useTranslations("settings");
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Saving…" : hasPassword ? "Change password" : "Set password"}
+      {pending ? t("saving") : hasPassword ? t("changePassword") : t("setPassword")}
     </button>
   );
 }
 
 export default function ChangePassword({ hasPassword }: { hasPassword: boolean }) {
+  const t = useTranslations("settings");
   const [state, formAction] = useActionState(
     changePassword,
     undefined as PasswordFormState,
@@ -34,14 +37,14 @@ export default function ChangePassword({ hasPassword }: { hasPassword: boolean }
       ) : null}
       {state?.ok ? (
         <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
-          Password updated.
+          {t("passwordUpdated")}
         </div>
       ) : null}
 
       {hasPassword ? (
         <div>
           <label className="label" htmlFor="currentPassword">
-            Current password
+            {t("currentPassword")}
           </label>
           <input
             id="currentPassword"
@@ -53,14 +56,12 @@ export default function ChangePassword({ hasPassword }: { hasPassword: boolean }
           />
         </div>
       ) : (
-        <p className="text-sm text-stone-500">
-          You sign in with Google. Set a password to also sign in with your email.
-        </p>
+        <p className="text-sm text-stone-500">{t("googleSetHint")}</p>
       )}
 
       <div>
         <label className="label" htmlFor="newPassword">
-          New password
+          {t("newPassword")}
         </label>
         <input
           id="newPassword"
@@ -74,7 +75,7 @@ export default function ChangePassword({ hasPassword }: { hasPassword: boolean }
       </div>
       <div>
         <label className="label" htmlFor="confirmPassword">
-          Confirm new password
+          {t("confirmPassword")}
         </label>
         <input
           id="confirmPassword"

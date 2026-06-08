@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { renameWeekPlan, deleteWeekPlan } from "@/lib/week-plan-actions";
 
 export type WeekPlanCard = {
@@ -14,6 +15,7 @@ export type WeekPlanCard = {
 };
 
 function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean }) {
+  const t = useTranslations("weekPlans");
   const [name, setName] = useState(plan.name);
   const orderHref = `/order?ids=${encodeURIComponent(plan.recipeIds.join(","))}&weekPlanId=${plan.id}`;
 
@@ -29,7 +31,7 @@ function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean })
               onChange={(e) => setName(e.target.value)}
               onBlur={() => name.trim() && name !== plan.name && renameWeekPlan(plan.id, name)}
               maxLength={200}
-              aria-label="Week plan name"
+              aria-label={t("nameAria")}
               className="w-full rounded border border-transparent px-1 text-base font-semibold hover:border-stone-200 focus:border-brand-500 focus:outline-none"
             />
           )}
@@ -43,22 +45,22 @@ function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean })
             onClick={() => deleteWeekPlan(plan.id)}
             className="flex-none text-xs text-stone-400 hover:text-red-600"
           >
-            Delete
+            {t("delete")}
           </button>
         ) : null}
       </div>
 
       <p className="mt-3 px-1 text-sm text-stone-600">
-        {plan.recipeTitles.length ? plan.recipeTitles.join(" · ") : "No recipes (all removed)."}
+        {plan.recipeTitles.length ? plan.recipeTitles.join(" · ") : t("noRecipes")}
       </p>
 
       <div className="mt-4">
         {plan.recipeIds.length ? (
           <Link href={orderHref} className="btn-primary">
-            Order with Picnic →
+            {t("orderWithPicnic")}
           </Link>
         ) : (
-          <span className="text-xs text-stone-400">Nothing to order.</span>
+          <span className="text-xs text-stone-400">{t("nothingToOrder")}</span>
         )}
       </div>
     </section>

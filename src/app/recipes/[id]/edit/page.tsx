@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { updateRecipe } from "@/app/actions";
@@ -16,14 +17,15 @@ export default async function EditRecipePage({
   const recipe = await prisma.recipe.findUnique({ where: { id } });
   if (!recipe || recipe.userId !== session.user.id) notFound();
 
+  const t = await getTranslations("recipeForm");
   const action = updateRecipe.bind(null, recipe.id);
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="mb-6 text-2xl font-bold">Edit recipe</h1>
+      <h1 className="mb-6 text-2xl font-bold">{t("editTitle")}</h1>
       <RecipeForm
         action={action}
-        submitLabel="Save changes"
+        submitLabel={t("saveChanges")}
         initial={{
           title: recipe.title,
           description: recipe.description ?? "",

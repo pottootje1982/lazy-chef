@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { productImageUrl } from "@/lib/picnic";
@@ -179,33 +180,28 @@ export default async function IngredientsPage() {
     })
     .sort((a, b) => b.count - a.count || a.raw.localeCompare(b.raw));
 
+  const t = await getTranslations("ingredients");
+
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
-        ← Back to recipes
+        {t("backToRecipes")}
       </Link>
-      <h1 className="mt-3 text-2xl font-bold">Link ingredients to Picnic</h1>
-      <p className="mt-1 text-sm text-stone-500">
-        Match recipe ingredients to Picnic products. Click a word to search, or type your own
-        term. Linking one applies it to every recipe that uses that ingredient.
-      </p>
+      <h1 className="mt-3 text-2xl font-bold">{t("title")}</h1>
+      <p className="mt-1 text-sm text-stone-500">{t("subtitle")}</p>
 
       <div className="mt-6">
         {isGuest ? (
-          <div className="card p-6 text-sm text-stone-500">
-            The guest account is read-only.
-          </div>
+          <div className="card p-6 text-sm text-stone-500">{t("guestReadOnly")}</div>
         ) : !picnicLinked ? (
           <div className="card p-6 text-sm text-stone-500">
             <Link href="/settings" className="text-brand-600 hover:underline">
-              Connect your Picnic account
-            </Link>{" "}
-            first to search for products.
+              {t("connectFirst")}
+            </Link>
+            {t("connectFirstSuffix")}
           </div>
         ) : linked.length === 0 && unlinked.length === 0 && ignored.length === 0 && unavailable.length === 0 ? (
-          <div className="card p-8 text-center text-sm text-stone-500">
-            No recipe ingredients yet.
-          </div>
+          <div className="card p-8 text-center text-sm text-stone-500">{t("noIngredients")}</div>
         ) : (
           <BulkLinkClient
             unlinked={unlinked}

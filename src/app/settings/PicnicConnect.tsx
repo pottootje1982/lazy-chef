@@ -2,13 +2,15 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { picnicConnect, type PicnicConnectState } from "@/lib/picnic-actions";
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const t = useTranslations("common");
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Please wait…" : label}
+      {pending ? t("pleaseWait") : label}
     </button>
   );
 }
@@ -16,6 +18,8 @@ function SubmitButton({ label }: { label: string }) {
 const INITIAL: PicnicConnectState = { step: "credentials" };
 
 export default function PicnicConnect() {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [state, formAction] = useActionState(picnicConnect, INITIAL);
   const step = state?.step ?? "credentials";
 
@@ -31,30 +35,27 @@ export default function PicnicConnect() {
         <>
           <div>
             <label className="label" htmlFor="email">
-              Picnic email
+              {t("picnicEmail")}
             </label>
             <input id="email" name="email" type="email" className="input" required />
           </div>
           <div>
             <label className="label" htmlFor="password">
-              Picnic password
+              {t("picnicPassword")}
             </label>
             <input id="password" name="password" type="password" className="input" required />
           </div>
-          <p className="text-xs text-stone-400">
-            Your credentials are used once to obtain an access key, which is stored encrypted. We
-            never store your password.
-          </p>
-          <SubmitButton label="Connect Picnic" />
+          <p className="text-xs text-stone-400">{t("picnicCredsHint")}</p>
+          <SubmitButton label={tc("connectPicnic")} />
         </>
       ) : (
         <>
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-800">
-            Picnic sent a verification code by SMS. Enter it below to finish connecting.
+            {t("picnicSmsSent")}
           </div>
           <div>
             <label className="label" htmlFor="code">
-              SMS code
+              {t("smsCode")}
             </label>
             <input
               id="code"
@@ -65,7 +66,7 @@ export default function PicnicConnect() {
               required
             />
           </div>
-          <SubmitButton label="Verify & connect" />
+          <SubmitButton label={t("verifyConnect")} />
         </>
       )}
     </form>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
 import {
   markIngredientUnavailable,
@@ -45,6 +46,7 @@ function QtySpinner({
   initial: number;
   defaultQuantity: number;
 }) {
+  const t = useTranslations("ingredientList");
   const [qty, setQty] = useState(initial);
   const qtyRef = useRef(initial);
   const ref = useRef<HTMLDivElement>(null);
@@ -74,7 +76,11 @@ function QtySpinner({
   return (
     <div
       ref={ref}
-      title={`Order quantity${overridden ? ` (recipe: ${defaultQuantity})` : ""} — scroll or use arrows`}
+      title={
+        overridden
+          ? t("orderQtyTooltipOverride", { default: defaultQuantity })
+          : t("orderQtyTooltip")
+      }
       className="flex flex-none items-center gap-0.5 rounded border border-stone-200 px-1 py-0.5"
     >
       <span className={`text-sm tabular-nums ${overridden ? "font-semibold text-brand-700" : "text-stone-700"}`}>
@@ -85,7 +91,7 @@ function QtySpinner({
           onClick={() => bump(1)}
           disabled={qty >= 99}
           className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
-          aria-label="Increase quantity"
+          aria-label={t("increaseQuantity")}
         >
           ▲
         </button>
@@ -93,7 +99,7 @@ function QtySpinner({
           onClick={() => bump(-1)}
           disabled={qty <= 1}
           className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
-          aria-label="Decrease quantity"
+          aria-label={t("decreaseQuantity")}
         >
           ▼
         </button>
@@ -115,6 +121,8 @@ function Row({
   lang?: string;
   recipeId: string;
 }) {
+  const t = useTranslations("ingredientList");
+  const tErr = useTranslations("errors");
   const [product, setProduct] = useState<LinkedProduct | null>(item.product);
   const [open, setOpen] = useState(false);
   const [unavailable, setUnavailable] = useState(item.unavailable);
@@ -159,7 +167,7 @@ function Row({
                 onClick={() => setUnavail(false)}
                 className="text-xs font-medium text-amber-700 hover:underline"
               >
-                Mark available
+                {t("markAvailable")}
               </button>
             ) : (
               <>
@@ -168,21 +176,21 @@ function Row({
                     onClick={() => setOpen(true)}
                     className="text-xs font-medium text-brand-600 hover:underline"
                   >
-                    {open ? "Searching…" : "Link product"}
+                    {open ? t("searching") : t("linkProduct")}
                   </button>
                 ) : (
                   <Link
                     href="/settings"
                     className="text-xs font-medium text-stone-400 hover:text-brand-600"
                   >
-                    Connect Picnic
+                    {t("connectPicnic")}
                   </Link>
                 )}
                 <button
                   onClick={() => setUnavail(true)}
                   className="text-xs text-stone-400 hover:text-amber-700"
                 >
-                  Not available
+                  {t("notAvailable")}
                 </button>
               </>
             )}
@@ -191,7 +199,7 @@ function Row({
       </div>
 
       {unavailable ? (
-        <p className="mt-2 text-xs text-amber-700">🛒 Not available at the grocer — buy elsewhere.</p>
+        <p className="mt-2 text-xs text-amber-700">{t("notAvailableNote")}</p>
       ) : null}
 
       {/* Linked product summary */}
@@ -228,10 +236,10 @@ function Row({
                   onClick={() => setOpen(true)}
                   className="text-xs text-stone-500 hover:text-brand-600"
                 >
-                  Change
+                  {t("change")}
                 </button>
                 <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
-                  Unlink
+                  {t("unlink")}
                 </button>
               </div>
             </>
@@ -243,9 +251,9 @@ function Row({
       {open ? (
         <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3">
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-xs text-stone-500">Search Picnic — edit the term if needed</span>
+            <span className="text-xs text-stone-500">{t("searchHint")}</span>
             <button onClick={() => setOpen(false)} className="text-xs text-stone-400 hover:text-stone-700">
-              Close
+              {t("close")}
             </button>
           </div>
 
@@ -254,7 +262,7 @@ function Row({
             autoSearch
             lang={lang}
             action={{
-              label: "Select",
+              label: t("select"),
               onPick: async (p, query) => {
                 const res = await fetch("/api/mappings", {
                   method: "POST",
@@ -262,7 +270,7 @@ function Row({
                   body: JSON.stringify({ rawIngredient: item.raw, translated: query, product: p }),
                 });
                 const data = await res.json();
-                if (!res.ok) return data.error ?? "Could not save mapping.";
+                if (!res.ok) return data.error ?? tErr("saveMappingFailed");
                 setProduct({
                   mappingId: data.mapping.id,
                   picnicId: p.picnicId,
@@ -294,8 +302,9 @@ export default function IngredientList({
   lang?: string;
   recipeId: string;
 }) {
+  const t = useTranslations("ingredientList");
   if (items.length === 0) {
-    return <p className="text-sm text-stone-400">No ingredients listed.</p>;
+    return <p className="text-sm text-stone-400">{t("noIngredients")}</p>;
   }
   return (
     <ul className="space-y-2">

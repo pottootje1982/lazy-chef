@@ -2,18 +2,21 @@
 
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import { paprikaConnect, type PaprikaConnectState } from "@/lib/paprika-actions";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+  const t = useTranslations("settings");
   return (
     <button type="submit" className="btn-primary" disabled={pending}>
-      {pending ? "Connecting…" : "Connect Paprika"}
+      {pending ? t("connecting") : t("connectPaprika")}
     </button>
   );
 }
 
 export default function PaprikaConnect() {
+  const t = useTranslations("settings");
   const [state, formAction] = useActionState(paprikaConnect, undefined as PaprikaConnectState | undefined);
 
   return (
@@ -25,19 +28,17 @@ export default function PaprikaConnect() {
       ) : null}
       <div>
         <label className="label" htmlFor="paprika-email">
-          Paprika email
+          {t("paprikaEmail")}
         </label>
         <input id="paprika-email" name="email" type="email" className="input" required />
       </div>
       <div>
         <label className="label" htmlFor="paprika-password">
-          Paprika password
+          {t("paprikaPassword")}
         </label>
         <input id="paprika-password" name="password" type="password" className="input" required />
       </div>
-      <p className="text-xs text-stone-400">
-        Used to sync your recipes. The password is stored encrypted.
-      </p>
+      <p className="text-xs text-stone-400">{t("paprikaHint")}</p>
       <SubmitButton />
     </form>
   );

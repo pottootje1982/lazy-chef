@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createRecipe } from "@/app/actions";
 import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
 import ScanFileButtons from "@/components/ScanFileButtons";
@@ -37,6 +38,13 @@ const REGION = Object.fromEntries(REGIONS.map((r) => [r.type, r])) as Record<
   RegionType,
   (typeof REGIONS)[number]
 >;
+const REGION_LABEL_KEY: Record<RegionType, string> = {
+  TITLE: "regionTitle",
+  SERVINGS: "regionServings",
+  INGREDIENTS: "regionIngredients",
+  DIRECTIONS: "regionDirections",
+  IMAGE: "regionImage",
+};
 
 const MIN_DRAG = 8; // ignore tiny accidental drags (display px)
 
@@ -100,6 +108,10 @@ const CORNERS: { k: string; west: boolean; north: boolean; pos: React.CSSPropert
 ];
 
 export default function ScanImportClient() {
+  const t = useTranslations("scan");
+  const tErr = useTranslations("errors");
+  const tForm = useTranslations("recipeForm");
+  const regionLabel = (ty: RegionType) => t(REGION_LABEL_KEY[ty]);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [ocr, setOcr] = useState<OcrResult | null>(null);
@@ -179,13 +191,13 @@ export default function ScanImportClient() {
       const res = await fetch("/api/recipes/scan", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Could not read text from that image.");
+        setError(data.error ?? tErr("readImageFailed"));
         setOcr(null);
         return;
       }
       setOcr(data);
     } catch {
-      setError("Something went wrong reading that image.");
+      setError(tErr("imageError"));
       setOcr(null);
     } finally {
       setOcrLoading(false);
@@ -207,7 +219,7 @@ export default function ScanImportClient() {
       setPdfPage(1);
       await usePdfPage(doc, 1);
     } catch {
-      setError("Couldn't read that PDF — try a different file or take a photo instead.");
+      setError(t("pdfFailed"));
       setOcrLoading(false);
     }
   }
@@ -257,7 +269,7 @@ export default function ScanImportClient() {
       setPreviewUrl(URL.createObjectURL(rotated));
       void runOcr(rotated);
     } catch {
-      setError("Couldn't rotate that image.");
+      setError(tErr("rotateFailed"));
       setOcrLoading(false);
     }
   }
@@ -399,7 +411,7 @@ export default function ScanImportClient() {
           sourceImageUrl = data.sourceImageUrl ?? "";
         } else {
           // Non-fatal: keep the extracted text, just skip the photo.
-          setImageNote(data.error ?? "Couldn't save the scan image — you can add one later.");
+          setImageNote(data.error ?? t("imageSaveFailed"));
         }
       }
 
@@ -426,7 +438,7 @@ export default function ScanImportClient() {
       };
       setValues(next);
     } catch {
-      setError("Something went wrong preparing the recipe.");
+      setError(t("prepareFailed"));
     } finally {
       setExtracting(false);
     }
@@ -437,12 +449,12 @@ export default function ScanImportClient() {
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          Read from your photo — review the details below and save.
+          {t("readFromPhoto")}
           <button
             onClick={() => setValues(null)}
             className="ml-2 text-green-700 underline hover:text-green-900"
           >
-            Back to the scan
+            {t("backToScan")}
           </button>
         </div>
         {imageNote ? (
@@ -450,7 +462,7 @@ export default function ScanImportClient() {
             {imageNote}
           </div>
         ) : null}
-        <RecipeForm action={createRecipe} initial={values} submitLabel="Save recipe" />
+        <RecipeForm action={createRecipe} initial={values} submitLabel={tForm("save")} />
       </div>
     );
   }
@@ -470,12 +482,12 @@ export default function ScanImportClient() {
 
       {pdfPageCount > 1 ? (
         <div className="flex items-center gap-3 text-sm text-stone-600">
-          <span>PDF page</span>
+          <span>{t("pdfPage")}</span>
           <button
             onClick={() => changePdfPage(pdfPage - 1)}
             disabled={pdfPage <= 1}
             className="rounded border border-stone-200 px-2 py-0.5 hover:bg-stone-100 disabled:opacity-40"
-            aria-label="Previous page"
+            aria-label={t("previousPage")}
           >
             ‹
           </button>
@@ -486,7 +498,7 @@ export default function ScanImportClient() {
             onClick={() => changePdfPage(pdfPage + 1)}
             disabled={pdfPage >= pdfPageCount}
             className="rounded border border-stone-200 px-2 py-0.5 hover:bg-stone-100 disabled:opacity-40"
-            aria-label="Next page"
+            aria-label={t("nextPage")}
           >
             ›
           </button>
@@ -503,7 +515,7 @@ export default function ScanImportClient() {
         <>
           {/* Toolbar: pick the region to draw next */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-stone-500">Draw a box for:</span>
+            <span className="text-sm text-stone-500">{t("drawBoxFor")}</span>
             {REGIONS.map((r) => (
               <button
                 key={r.type}
@@ -512,7 +524,7 @@ export default function ScanImportClient() {
                   activeLabel === r.type ? "ring-2 ring-offset-1 ring-stone-400" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                {r.label}
+                {regionLabel(r.type)}
               </button>
             ))}
             <span className="ml-auto flex items-center gap-1">
@@ -520,8 +532,8 @@ export default function ScanImportClient() {
                 onClick={() => rotate(-90)}
                 disabled={ocrLoading}
                 className="rounded border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-100 disabled:opacity-40"
-                aria-label="Rotate left"
-                title="Rotate left"
+                aria-label={t("rotateLeft")}
+                title={t("rotateLeft")}
               >
                 ↺
               </button>
@@ -529,19 +541,15 @@ export default function ScanImportClient() {
                 onClick={() => rotate(90)}
                 disabled={ocrLoading}
                 className="rounded border border-stone-200 px-2 py-0.5 text-sm hover:bg-stone-100 disabled:opacity-40"
-                aria-label="Rotate right"
-                title="Rotate right"
+                aria-label={t("rotateRight")}
+                title={t("rotateRight")}
               >
                 ↻
               </button>
             </span>
-            {ocrLoading ? <span className="text-xs text-stone-400">Reading text…</span> : null}
+            {ocrLoading ? <span className="text-xs text-stone-400">{t("readingText")}</span> : null}
           </div>
-          <p className="-mt-2 text-xs text-stone-400">
-            Drag on the image to draw a box; drag the corner handles to resize, or ✕ to remove.
-            You can draw several Ingredients or Directions boxes — handy when they span columns.
-            Use ↺ ↻ to rotate.
-          </p>
+          <p className="-mt-2 text-xs text-stone-400">{t("drawHint")}</p>
 
           {/* Image + draw overlay */}
           <div className="relative inline-block max-w-full select-none">
@@ -549,7 +557,7 @@ export default function ScanImportClient() {
             <img
               ref={imgRef}
               src={previewUrl}
-              alt="Recipe scan"
+              alt={t("imageAlt")}
               draggable={false}
               className="block max-w-full rounded-lg border border-stone-200"
             />
@@ -575,12 +583,12 @@ export default function ScanImportClient() {
                       onPointerDown={(e) => e.stopPropagation()}
                     >
                       <span className={`px-1 text-[10px] font-medium text-white ${cfg.chip}`}>
-                        {cfg.label}
+                        {regionLabel(r.type)}
                       </span>
                       <button
                         onClick={() => removeRect(r.id)}
                         className={`h-4 w-4 rounded text-[10px] leading-4 text-white ${cfg.chip}`}
-                        aria-label={`Remove ${cfg.label} box`}
+                        aria-label={t("removeBox", { label: regionLabel(r.type) })}
                       >
                         ✕
                       </button>
@@ -594,7 +602,7 @@ export default function ScanImportClient() {
                         onPointerUp={onResizeUp}
                         className={`absolute h-3 w-3 rounded-sm border border-white ${cfg.chip}`}
                         style={{ ...corner.pos, cursor: corner.cursor, touchAction: "none" }}
-                        aria-label={`Resize ${cfg.label} box`}
+                        aria-label={t("resizeBox", { label: regionLabel(r.type) })}
                       />
                     ))}
                   </div>
@@ -617,21 +625,21 @@ export default function ScanImportClient() {
 
           {/* Live preview of what will be extracted */}
           <div className="card space-y-3 p-4">
-            <h2 className="text-sm font-semibold text-stone-700">Preview</h2>
-            <RegionPreview label="Title" empty={!preview.title}>
+            <h2 className="text-sm font-semibold text-stone-700">{t("preview")}</h2>
+            <RegionPreview label={t("regionTitle")} empty={!preview.title}>
               {preview.title}
             </RegionPreview>
-            <RegionPreview label="Servings" empty={!preview.servings}>
+            <RegionPreview label={t("regionServings")} empty={!preview.servings}>
               {preview.servings}
             </RegionPreview>
-            <RegionPreview label="Ingredients" empty={preview.ingredients.length === 0}>
+            <RegionPreview label={t("regionIngredients")} empty={preview.ingredients.length === 0}>
               <ul className="list-disc pl-5">
                 {preview.ingredients.map((line, i) => (
                   <li key={i}>{line}</li>
                 ))}
               </ul>
             </RegionPreview>
-            <RegionPreview label="Directions" empty={!preview.directions}>
+            <RegionPreview label={t("regionDirections")} empty={!preview.directions}>
               {stepsPerBox && preview.directionSteps.length > 1 ? (
                 <ol className="list-decimal space-y-1 pl-5">
                   {preview.directionSteps.map((s, i) => (
@@ -644,8 +652,8 @@ export default function ScanImportClient() {
                 <p className="whitespace-pre-wrap">{preview.directions}</p>
               )}
             </RegionPreview>
-            <RegionPreview label="Image" empty={!preview.hasImage}>
-              {preview.hasImage ? "Marked — will be cropped and saved." : null}
+            <RegionPreview label={t("regionImage")} empty={!preview.hasImage}>
+              {preview.hasImage ? t("imageMarked") : null}
             </RegionPreview>
           </div>
 
@@ -657,7 +665,7 @@ export default function ScanImportClient() {
                 onChange={(e) => setStepsPerBox(e.target.checked)}
                 className="h-4 w-4 rounded border-stone-300"
               />
-              Treat separate direction boxes as steps
+              {t("treatBoxesAsSteps")}
             </label>
           ) : null}
 
@@ -668,7 +676,7 @@ export default function ScanImportClient() {
               onChange={(e) => setSaveOriginal(e.target.checked)}
               className="h-4 w-4 rounded border-stone-300"
             />
-            Save the original photo with the recipe
+            {t("saveSourceImage")}
           </label>
 
           <button
@@ -676,7 +684,7 @@ export default function ScanImportClient() {
             disabled={extracting || !hasAnything}
             className="btn-primary"
           >
-            {extracting ? "Extracting…" : "Extract & review"}
+            {extracting ? t("extracting") : t("extractReview")}
           </button>
         </>
       ) : null}

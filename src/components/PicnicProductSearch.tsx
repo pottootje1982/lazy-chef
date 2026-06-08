@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import ProductHoverCard from "@/components/ProductHoverCard";
 
 export type SearchProduct = {
@@ -32,7 +33,7 @@ export default function PicnicProductSearch({
   ingredient,
   words = [],
   initialQuery = "",
-  placeholder = "search term…",
+  placeholder,
   autoSearch = false,
   lang,
   action,
@@ -45,6 +46,8 @@ export default function PicnicProductSearch({
   lang?: string; // "en" → translate the ingredient to Dutch before searching
   action: ProductAction;
 }) {
+  const t = useTranslations("common");
+  const tErr = useTranslations("errors");
   const [query, setQuery] = useState(initialQuery);
   const [results, setResults] = useState<SearchProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -71,8 +74,8 @@ export default function PicnicProductSearch({
       if (!res.ok) {
         setError(
           data.error === "picnic_not_linked"
-            ? "Connect your Picnic account in Settings first."
-            : (data.error ?? "Search failed."),
+            ? tErr("picnicNotLinked")
+            : (data.error ?? tErr("searchFailed")),
         );
         return;
       }
@@ -81,7 +84,7 @@ export default function PicnicProductSearch({
       setVisible(8);
       setSearched(true);
     } catch {
-      setError("Something went wrong searching Picnic.");
+      setError(tErr("somethingWrong"));
     } finally {
       setLoading(false);
     }
@@ -133,18 +136,18 @@ export default function PicnicProductSearch({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={placeholder}
+            placeholder={placeholder ?? t("searchTermPlaceholder")}
             className="input !py-1 text-sm"
           />
           <button type="submit" disabled={loading} className="btn-secondary flex-none !py-1">
-            {loading ? "…" : "Search"}
+            {loading ? "…" : t("search")}
           </button>
         </form>
       </div>
 
       {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
       {!loading && !error && searched && results.length === 0 ? (
-        <p className="mt-2 text-sm text-stone-400">No products found — try another word.</p>
+        <p className="mt-2 text-sm text-stone-400">{tErr("noProductsFound")}</p>
       ) : null}
 
       {results.length > 0 ? (
@@ -184,7 +187,7 @@ export default function PicnicProductSearch({
               onClick={() => setVisible((v) => v + 8)}
               className="w-full rounded border border-stone-200 py-1.5 text-xs text-stone-600 hover:bg-stone-100"
             >
-              Load more ({results.length - visible})
+              {t("loadMore", { count: results.length - visible })}
             </button>
           ) : null}
         </div>

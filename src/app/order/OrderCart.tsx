@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { saveOrderSelection, saveOrderQuantities, placeCurrentOrder } from "@/lib/order-actions";
 
 export type OrderItem = {
@@ -34,6 +35,8 @@ export default function OrderCart({
   picnicLinked: boolean;
   isGuest?: boolean;
 }) {
+  const t = useTranslations("order");
+  const tErr = useTranslations("errors");
   const ids = new Set(items.map((i) => i.picnicId));
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(initialSelectedIds.filter((id) => ids.has(id))),
@@ -86,8 +89,8 @@ export default function OrderCart({
       if (!res.ok) {
         setError(
           data.error === "picnic_not_linked"
-            ? "Connect your Picnic account in Settings first."
-            : (data.error ?? "Could not add to cart."),
+            ? tErr("picnicNotLinked")
+            : (data.error ?? tErr("addToCartFailed")),
         );
         setStatus("idle");
         return;
@@ -96,7 +99,7 @@ export default function OrderCart({
       await placeCurrentOrder().catch(() => {});
       setStatus("done");
     } catch {
-      setError("Something went wrong adding to your Picnic cart.");
+      setError(t("addToCartError"));
       setStatus("idle");
     }
   }
@@ -104,8 +107,8 @@ export default function OrderCart({
   if (items.length === 0) {
     return (
       <div className="mt-6 card p-5 text-sm text-stone-500">
-        None of these ingredients are linked to a Picnic product yet.
-        {unmappedCount > 0 ? " Open a recipe to link products to ingredients." : ""}
+        {t("noneLinked")}
+        {unmappedCount > 0 ? t("openRecipeHint") : ""}
       </div>
     );
   }
@@ -113,8 +116,8 @@ export default function OrderCart({
   return (
     <div className="mt-8">
       <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">Shopping list</h2>
-        <span className="text-xs text-stone-400">Untick anything you don&apos;t need</span>
+        <h2 className="text-lg font-semibold">{t("shoppingList")}</h2>
+        <span className="text-xs text-stone-400">{t("untickHint")}</span>
       </div>
 
       <ul className="card divide-y divide-stone-100">
@@ -122,9 +125,9 @@ export default function OrderCart({
           const isOn = selected.has(item.picnicId);
           const qty = qtyOf(item.picnicId);
           const reason = item.isStaple
-            ? "pantry staple"
+            ? t("reasonStaple")
             : item.recipeCount > 1
-              ? `in ${item.recipeCount} recipes`
+              ? t("reasonRecipes", { count: item.recipeCount })
               : null;
           return (
             <li key={item.picnicId} className="flex items-center gap-3 p-3">
@@ -163,7 +166,7 @@ export default function OrderCart({
                   onClick={() => setQty(item.picnicId, -1)}
                   disabled={qty <= 1}
                   className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-                  aria-label="Decrease quantity"
+                  aria-label={t("decreaseQuantity")}
                 >
                   −
                 </button>
@@ -172,7 +175,7 @@ export default function OrderCart({
                   onClick={() => setQty(item.picnicId, 1)}
                   disabled={qty >= 99}
                   className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-                  aria-label="Increase quantity"
+                  aria-label={t("increaseQuantity")}
                 >
                   +
                 </button>
@@ -187,7 +190,7 @@ export default function OrderCart({
         {status === "done" ? (
           <div className="rounded-xl border border-green-200 bg-green-50 p-4 shadow-lg">
             <p className="text-sm font-medium text-green-800">
-              ✓ Added {totalProducts} product{totalProducts === 1 ? "" : "s"} to your Picnic cart.
+              {t("added", { count: totalProducts })}
             </p>
             <div className="mt-1 flex flex-wrap gap-3 text-sm">
               <a
@@ -196,10 +199,10 @@ export default function OrderCart({
                 rel="noopener noreferrer"
                 className="text-green-700 underline hover:text-green-900"
               >
-                Open Picnic to check out →
+                {t("openPicnic")}
               </a>
               <Link href="/settings" className="text-green-700 underline hover:text-green-900">
-                View in previous orders
+                {t("viewInPrevious")}
               </Link>
             </div>
           </div>
@@ -213,14 +216,14 @@ export default function OrderCart({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm text-stone-600">
                 <span className="font-medium text-stone-900">
-                  {chosen.length} of {items.length} selected
+                  {t("selectedCount", { chosen: chosen.length, total: items.length })}
                 </span>
                 {totalCents ? <> · ~{euro(totalCents)}</> : null}
               </div>
 
               {isGuest ? (
                 <span className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-500">
-                  Sign in to order with Picnic
+                  {t("signInToOrder")}
                 </span>
               ) : picnicLinked ? (
                 <button
@@ -228,11 +231,11 @@ export default function OrderCart({
                   disabled={status === "loading" || chosen.length === 0}
                   className="btn-primary"
                 >
-                  {status === "loading" ? "Adding…" : `Add ${chosen.length} to Picnic cart`}
+                  {status === "loading" ? t("adding") : t("addToCart", { count: chosen.length })}
                 </button>
               ) : (
                 <Link href="/settings" className="btn-primary">
-                  Connect Picnic to order
+                  {t("connectToOrder")}
                 </Link>
               )}
             </div>

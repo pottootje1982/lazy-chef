@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateOrder, defaultSelectedIds, sameSelection } from "@/lib/orders";
@@ -32,6 +33,7 @@ export default async function OrderPage({
   if (agg.sections.length === 0) redirect("/recipes");
 
   const picnicLinked = Boolean(user?.picnicAuthKey);
+  const t = await getTranslations("order");
 
   // Persist the current order as a DRAFT (selected recipes + lists + products)
   // so the selection survives reloads. Guests don't persist anything.
@@ -67,21 +69,21 @@ export default async function OrderPage({
   return (
     <div className="mx-auto max-w-3xl">
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
-        ← Back to recipes
+        {t("backToRecipes")}
       </Link>
-      <h1 className="mt-3 text-2xl font-bold">Order overview</h1>
+      <h1 className="mt-3 text-2xl font-bold">{t("title")}</h1>
       <p className="mt-1 text-sm text-stone-500">
-        {sourceCount} list{sourceCount === 1 ? "" : "s"} &amp; recipes
+        {t("summary", { count: sourceCount })}
         {agg.unmappedCount > 0 ? (
           <span className="ml-1 font-medium text-amber-700">
-            · {agg.unmappedCount} ingredient{agg.unmappedCount === 1 ? "" : "s"} without a product
+            {t("unmappedNote", { count: agg.unmappedCount })}
           </span>
         ) : null}
       </p>
 
       {agg.unavailable.length ? (
         <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3">
-          <p className="text-sm font-semibold text-amber-800">🛒 Not available — buy elsewhere</p>
+          <p className="text-sm font-semibold text-amber-800">{t("notAvailableTitle")}</p>
           <ul className="mt-1 space-y-0.5 text-sm text-amber-900">
             {agg.unavailable.map((line, i) => (
               <li key={i}>{line}</li>
@@ -103,7 +105,7 @@ export default async function OrderPage({
                 href={section.kind === "list" ? "/groceries" : `/recipes/${section.id}`}
                 className="text-xs text-stone-500 hover:text-brand-600"
               >
-                {section.kind === "list" ? "Edit list" : "View recipe"}
+                {section.kind === "list" ? t("editList") : t("viewRecipe")}
               </Link>
             </div>
             <ul className="space-y-1 text-sm">
@@ -118,7 +120,7 @@ export default async function OrderPage({
                       href={`/recipes/${section.id}`}
                       className="flex-none text-xs font-medium text-amber-700 hover:underline"
                     >
-                      no product — link one
+                      {t("noProductLink")}
                     </Link>
                   </li>
                 ) : (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RECIPE_CATEGORIES as CATEGORIES } from "@/lib/categories";
@@ -7,8 +8,8 @@ import RecipeGrid from "./RecipeGrid";
 
 // Origin-based filter chips (shown only when the user has such recipes).
 const ORIGIN_FILTERS = [
-  { key: "scan", label: "📷 Scanned" },
-  { key: "paprika", label: "From Paprika" },
+  { key: "scan", labelKey: "scanned" },
+  { key: "paprika", labelKey: "fromPaprika" },
 ] as const;
 
 export default async function RecipesPage({
@@ -19,6 +20,8 @@ export default async function RecipesPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const t = await getTranslations("recipes");
+  const tc = await getTranslations("categories");
   const { cat, origin } = await searchParams;
 
   // Multiple categories allowed (comma-separated); a recipe matching ANY of
@@ -79,25 +82,31 @@ export default async function RecipesPage({
   const originHref = (key: string) => buildHref(activeCats, toggle(activeOrigins, key));
   const allHref = buildHref([], []); // clears every filter
 
-  const catLabel = [
-    ...activeCats.map((k) => CATEGORIES.find((c) => c.key === k)!.label.toLowerCase()),
-    ...activeOrigins.map((k) => ORIGIN_FILTERS.find((o) => o.key === k)!.label.toLowerCase()),
-  ].join(" + ");
+  // Localized label fragment for the result-count line. Includes a trailing
+  // space when present so the count messages read naturally ("3 vegetarisch
+  // recepten" / "3 recepten").
+  const labelParts = [
+    ...activeCats.map((k) => tc(k).toLowerCase()),
+    ...activeOrigins.map((k) =>
+      t(ORIGIN_FILTERS.find((o) => o.key === k)!.labelKey).toLowerCase(),
+    ),
+  ];
+  const catLabel = labelParts.length ? labelParts.join(" + ") + " " : "";
 
   // Filter chips (category + origin) rendered inline with the search box by
   // RecipeGrid. Hrefs are server-computed here so they stay bookmarkable.
   const categoryChips = [
-    { key: "__all", label: "All", href: allHref, active: !filtering },
+    { key: "__all", label: t("all"), href: allHref, active: !filtering },
     ...CATEGORIES.map((c) => ({
       key: c.key,
-      label: c.label,
+      label: tc(c.key),
       href: catHref(c.key),
       active: activeCats.includes(c.key),
     })),
   ];
   const originChipData = originChips.map((o) => ({
     key: o.key,
-    label: o.label,
+    label: t(o.labelKey),
     href: originHref(o.key),
     active: activeOrigins.includes(o.key),
   }));
@@ -105,18 +114,18 @@ export default async function RecipesPage({
   return (
     <div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">My Recipes</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
 
       {showOnboarding ? (
         <div className="card p-10 text-center text-stone-500">
-          <p className="mb-4">You don&apos;t have any recipes yet.</p>
+          <p className="mb-4">{t("emptyTitle")}</p>
           <div className="flex justify-center gap-3">
             <Link href="/recipes/new" className="btn-primary">
-              Add one manually
+              {t("addManually")}
             </Link>
             <Link href="/recipes/import" className="btn-secondary">
-              Import from a URL
+              {t("importFromUrl")}
             </Link>
           </div>
         </div>

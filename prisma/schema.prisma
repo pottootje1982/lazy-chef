@@ -32,6 +32,8 @@ model User {
   // least `autoWeekPlanMinRecipes` recipes.
   autoWeekPlanEnabled    Boolean @default(true)
   autoWeekPlanMinRecipes Int     @default(3)
+  // Preferred UI language ("nl" | "en"). Dutch is the default for everyone.
+  language      String   @default("nl")
   accounts      Account[]
   sessions      Session[]
   recipes       Recipe[]

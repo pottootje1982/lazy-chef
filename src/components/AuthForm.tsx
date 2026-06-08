@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
+import { useTranslations } from "next-intl";
 import type { AuthFormState } from "@/lib/auth-actions";
 
 type Action = (prev: AuthFormState, formData: FormData) => Promise<AuthFormState>;
 
 function SubmitButton({ label }: { label: string }) {
   const { pending } = useFormStatus();
+  const tc = useTranslations("common");
   return (
     <button type="submit" className="btn-primary w-full" disabled={pending}>
-      {pending ? "Please wait…" : label}
+      {pending ? tc("pleaseWait") : label}
     </button>
   );
 }
@@ -23,6 +25,7 @@ export default function AuthForm({
   mode: "login" | "register";
   action: Action;
 }) {
+  const t = useTranslations("auth");
   const [state, formAction] = useActionState(action, undefined);
   const isRegister = mode === "register";
 
@@ -37,7 +40,7 @@ export default function AuthForm({
       {isRegister ? (
         <div>
           <label className="label" htmlFor="name">
-            Name
+            {t("name")}
           </label>
           <input id="name" name="name" className="input" required autoComplete="name" />
         </div>
@@ -45,7 +48,7 @@ export default function AuthForm({
 
       <div>
         <label className="label" htmlFor="email">
-          Email
+          {t("email")}
         </label>
         <input
           id="email"
@@ -59,7 +62,7 @@ export default function AuthForm({
 
       <div>
         <label className="label" htmlFor="password">
-          Password
+          {t("password")}
         </label>
         <input
           id="password"
@@ -71,25 +74,25 @@ export default function AuthForm({
           autoComplete={isRegister ? "new-password" : "current-password"}
         />
         {isRegister ? (
-          <p className="mt-1 text-xs text-stone-400">At least 8 characters.</p>
+          <p className="mt-1 text-xs text-stone-400">{t("min8")}</p>
         ) : null}
       </div>
 
-      <SubmitButton label={isRegister ? "Create account" : "Sign in"} />
+      <SubmitButton label={isRegister ? t("createAccount") : t("signIn")} />
 
       <p className="text-center text-sm text-stone-500">
         {isRegister ? (
           <>
-            Already have an account?{" "}
+            {t("haveAccount")}{" "}
             <Link href="/login" className="text-brand-600 hover:underline">
-              Sign in
+              {t("signIn")}
             </Link>
           </>
         ) : (
           <>
-            New here?{" "}
+            {t("newHere")}{" "}
             <Link href="/register" className="text-brand-600 hover:underline">
-              Create an account
+              {t("createAccountLink")}
             </Link>
           </>
         )}

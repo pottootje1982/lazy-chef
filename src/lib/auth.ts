@@ -39,6 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           image: user.image,
           isGuest: user.isGuest,
+          language: user.language,
         };
       },
     }),
@@ -56,6 +57,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: guest.email,
           image: guest.image,
           isGuest: true,
+          language: guest.language,
         };
       },
     }),
@@ -71,8 +73,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         // `user` is the authorize() return (credentials) or adapter row (OAuth);
-        // both carry isGuest.
+        // both carry isGuest + language.
         token.isGuest = Boolean((user as { isGuest?: boolean }).isGuest);
+        token.language = (user as { language?: string }).language;
       }
       return token;
     },
@@ -80,6 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.isGuest = Boolean(token.isGuest);
+        session.user.language = token.language as string | undefined;
       }
       return session;
     },

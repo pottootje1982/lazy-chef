@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   renameList,
   deleteList,
@@ -22,6 +23,7 @@ type Item = {
 };
 
 function QtyStepper({ id, initial }: { id: string; initial: number }) {
+  const t = useTranslations("groceries");
   const [qty, setQty] = useState(initial);
   function change(delta: number) {
     const next = Math.max(0, Math.min(99, qty + delta));
@@ -35,7 +37,7 @@ function QtyStepper({ id, initial }: { id: string; initial: number }) {
         onClick={() => change(-1)}
         disabled={qty <= 0}
         className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-        aria-label="Decrease quantity"
+        aria-label={t("decreaseQuantity")}
       >
         −
       </button>
@@ -44,7 +46,7 @@ function QtyStepper({ id, initial }: { id: string; initial: number }) {
         onClick={() => change(1)}
         disabled={qty >= 99}
         className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-        aria-label="Increase quantity"
+        aria-label={t("increaseQuantity")}
       >
         +
       </button>
@@ -63,6 +65,7 @@ export default function GroceryListEditor({
   list: { id: string; name: string; items: Item[] };
   picnicLinked: boolean;
 }) {
+  const t = useTranslations("groceries");
   const [name, setName] = useState(list.name);
   const itemIds = new Set(list.items.map((i) => i.picnicId));
 
@@ -86,7 +89,7 @@ export default function GroceryListEditor({
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             onClick={toggleCollapsed}
-            aria-label={collapsed ? "Expand list" : "Collapse list"}
+            aria-label={collapsed ? t("expandList") : t("collapseList")}
             aria-expanded={!collapsed}
             className="flex-none text-stone-400 hover:text-stone-700"
           >
@@ -105,7 +108,7 @@ export default function GroceryListEditor({
             className="min-w-0 rounded border border-transparent px-1 text-base font-semibold hover:border-stone-200 focus:border-brand-500 focus:outline-none"
           />
           <span className="flex-none text-xs text-stone-400">
-            {list.items.length} product{list.items.length === 1 ? "" : "s"}
+            {t("productCount", { count: list.items.length })}
           </span>
         </div>
         <div className="flex flex-none items-center gap-3">
@@ -114,24 +117,18 @@ export default function GroceryListEditor({
               href={`/order?lists=${list.id}`}
               className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
             >
-              Order →
+              {t("order")}
             </Link>
           ) : null}
           <button
             onClick={() => {
-              if (
-                confirm(
-                  `Delete "${name}" and all ${list.items.length} product${
-                    list.items.length === 1 ? "" : "s"
-                  }? This can't be undone.`,
-                )
-              ) {
+              if (confirm(t("deleteConfirm", { name, count: list.items.length }))) {
                 deleteList(list.id);
               }
             }}
             className="text-xs text-stone-400 hover:text-red-600"
           >
-            Delete list
+            {t("deleteList")}
           </button>
         </div>
       </div>
@@ -141,10 +138,10 @@ export default function GroceryListEditor({
       {/* Add products via Picnic search */}
       {picnicLinked ? (
         <PicnicProductSearch
-          placeholder="Search Picnic products to add…"
+          placeholder={t("searchPlaceholder")}
           action={{
-            label: "Add",
-            pickedLabel: "Added",
+            label: t("add"),
+            pickedLabel: t("added"),
             isPicked: (p) => itemIds.has(p.picnicId),
             onPick: async (p) => {
               await addGroceryItem(list.id, {
@@ -162,7 +159,7 @@ export default function GroceryListEditor({
       {/* Items */}
       <ul className="mt-4 space-y-2 border-t border-stone-100 pt-4">
         {list.items.length === 0 ? (
-          <li className="text-sm text-stone-400">No products yet — search above to add some.</li>
+          <li className="text-sm text-stone-400">{t("noProducts")}</li>
         ) : (
           list.items.map((it) => (
             <li key={it.id} className="flex items-center gap-3 rounded-lg bg-stone-50 p-2">
@@ -184,7 +181,7 @@ export default function GroceryListEditor({
               <button
                 onClick={() => removeGroceryItem(it.id)}
                 className="flex-none px-2 text-stone-400 hover:text-red-600"
-                aria-label="Remove product"
+                aria-label={t("removeProduct")}
               >
                 ✕
               </button>

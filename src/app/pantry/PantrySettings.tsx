@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   addPantryKeyword,
   removePantryKeyword,
@@ -49,10 +50,11 @@ function OverrideButtons({
   value: boolean | null;
   onSet: (v: boolean | null) => void;
 }) {
+  const t = useTranslations("pantry");
   const opts: { label: string; v: boolean | null }[] = [
-    { label: "Auto", v: null },
-    { label: "Pantry", v: true },
-    { label: "Not pantry", v: false },
+    { label: t("auto"), v: null },
+    { label: t("pantry"), v: true },
+    { label: t("notPantry"), v: false },
   ];
   return (
     <div className="flex flex-none gap-1">
@@ -83,6 +85,7 @@ export default function PantrySettings({
   keywords: string[];
   mappings: PantryMapping[];
 }) {
+  const t = useTranslations("pantry");
   const products = useMemo(() => dedupeByProduct(mappings), [mappings]);
 
   const [query, setQuery] = useState("");
@@ -118,14 +121,11 @@ export default function PantrySettings({
     <div className="space-y-6">
       {/* Keyword rules */}
       <div>
-        <h3 className="text-sm font-medium text-stone-700">Pantry keywords</h3>
-        <p className="mt-1 text-xs text-stone-500">
-          Linked ingredients whose name contains one of these words are unticked by
-          default when ordering.
-        </p>
+        <h3 className="text-sm font-medium text-stone-700">{t("keywordsHeading")}</h3>
+        <p className="mt-1 text-xs text-stone-500">{t("keywordsDesc")}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {keywords.length === 0 ? (
-            <span className="text-sm text-stone-400">No keywords.</span>
+            <span className="text-sm text-stone-400">{t("noKeywords")}</span>
           ) : (
             keywords.map((w) => (
               <span
@@ -136,7 +136,7 @@ export default function PantrySettings({
                 <button
                   onClick={() => removePantryKeyword(w)}
                   className="flex h-5 w-5 items-center justify-center rounded-full text-stone-400 hover:bg-stone-200 hover:text-red-600"
-                  aria-label={`Remove ${w}`}
+                  aria-label={t("removeAria", { word: w })}
                 >
                   ✕
                 </button>
@@ -149,22 +149,19 @@ export default function PantrySettings({
             name="keyword"
             required
             maxLength={40}
-            placeholder="Add a keyword (e.g. rice)"
+            placeholder={t("addPlaceholder")}
             className="input !py-1.5 text-sm"
           />
           <button type="submit" className="btn-secondary flex-none !py-1.5">
-            Add
+            {t("add")}
           </button>
         </form>
       </div>
 
       {/* Per-product overrides */}
       <div className="border-t border-stone-100 pt-5">
-        <h3 className="text-sm font-medium text-stone-700">Per-product overrides</h3>
-        <p className="mt-1 text-xs text-stone-500">
-          Force a specific linked product to be a pantry item (or never), ignoring the
-          keywords above.
-        </p>
+        <h3 className="text-sm font-medium text-stone-700">{t("overridesHeading")}</h3>
+        <p className="mt-1 text-xs text-stone-500">{t("overridesDesc")}</p>
 
         {overridden.length > 0 ? (
           <ul className="mt-3 space-y-2">
@@ -188,7 +185,7 @@ export default function PantrySettings({
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search your linked products…"
+              placeholder={t("searchPlaceholder")}
               className="input !py-1.5 text-sm"
             />
             {matches.length > 0 ? (
@@ -209,13 +206,11 @@ export default function PantrySettings({
                 ))}
               </ul>
             ) : query.trim() ? (
-              <p className="mt-2 text-sm text-stone-400">No matching products.</p>
+              <p className="mt-2 text-sm text-stone-400">{t("noMatchingProducts")}</p>
             ) : null}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-stone-400">
-            Link some recipe ingredients to products first.
-          </p>
+          <p className="mt-3 text-sm text-stone-400">{t("linkFirst")}</p>
         )}
       </div>
     </div>

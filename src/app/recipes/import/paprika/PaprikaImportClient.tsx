@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Item = { uid: string; name: string; sourceUrl: string; alreadyImported: boolean };
 
@@ -14,6 +15,7 @@ function host(url: string): string {
 }
 
 export default function PaprikaImportClient() {
+  const t = useTranslations("paprikaImport");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [items, setItems] = useState<Item[] | null>(null);
@@ -34,8 +36,8 @@ export default function PaprikaImportClient() {
       if (!res.ok) {
         setError(
           data.error === "paprika_not_connected"
-            ? "Connect your Paprika account in Settings first."
-            : (data.error ?? "Failed to load Paprika recipes."),
+            ? t("notConnected")
+            : (data.error ?? t("loadFailed")),
         );
         return;
       }
@@ -44,7 +46,7 @@ export default function PaprikaImportClient() {
       // Pre-select all new recipes by default.
       setSelected(new Set(data.items.filter((i: Item) => !i.alreadyImported).map((i: Item) => i.uid)));
     } catch {
-      setError("Something went wrong loading your Paprika recipes.");
+      setError(t("loadError"));
     } finally {
       setLoading(false);
     }
@@ -70,14 +72,14 @@ export default function PaprikaImportClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Import failed.");
+        setError(data.error ?? t("importFailed"));
         return;
       }
       setDone({ imported: data.imported, skipped: data.skipped });
       setItems(null);
       setSelected(new Set());
     } catch {
-      setError("Something went wrong importing.");
+      setError(t("importError"));
     } finally {
       setImporting(false);
     }
@@ -87,14 +89,14 @@ export default function PaprikaImportClient() {
     return (
       <div className="card p-6">
         <p className="text-sm font-medium text-green-800">
-          ✓ Imported {done.imported} recipe{done.imported === 1 ? "" : "s"} from Paprika.
+          {t("importedDone", { count: done.imported })}
         </p>
         <div className="mt-3 flex gap-3">
           <Link href="/recipes" className="btn-primary">
-            View my recipes
+            {t("viewMyRecipes")}
           </Link>
           <button onClick={load} className="btn-secondary">
-            Load again
+            {t("loadAgain")}
           </button>
         </div>
       </div>
@@ -109,11 +111,9 @@ export default function PaprikaImportClient() {
             {error}
           </div>
         ) : null}
-        <p className="mb-4 text-sm text-stone-500">
-          This fetches all your Paprika recipes (can take 10–20 seconds).
-        </p>
+        <p className="mb-4 text-sm text-stone-500">{t("fetchHint")}</p>
         <button onClick={load} disabled={loading} className="btn-primary">
-          {loading ? "Loading…" : "Load my Paprika recipes"}
+          {loading ? t("loading") : t("loadRecipes")}
         </button>
       </div>
     );
@@ -129,7 +129,7 @@ export default function PaprikaImportClient() {
 
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm text-stone-500">
-          {newItems.length} new · {importedCount} already imported
+          {t("countLine", { newCount: newItems.length, importedCount })}
         </span>
         {newItems.length > 0 ? (
           <div className="flex gap-2 text-sm">
@@ -137,22 +137,20 @@ export default function PaprikaImportClient() {
               onClick={() => setSelected(new Set(newItems.map((i) => i.uid)))}
               className="text-brand-600 hover:underline"
             >
-              Select all
+              {t("selectAll")}
             </button>
             <button
               onClick={() => setSelected(new Set())}
               className="text-stone-500 hover:underline"
             >
-              Clear
+              {t("clear")}
             </button>
           </div>
         ) : null}
       </div>
 
       {newItems.length === 0 ? (
-        <div className="card p-6 text-sm text-stone-500">
-          All your Paprika recipes are already imported. 🎉
-        </div>
+        <div className="card p-6 text-sm text-stone-500">{t("allImported")}</div>
       ) : (
         <ul className="card divide-y divide-stone-100">
           {newItems.map((i) => (
@@ -177,14 +175,14 @@ export default function PaprikaImportClient() {
       <div className="sticky bottom-4 mt-4">
         <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-white p-4 shadow-lg">
           <span className="text-sm text-stone-600">
-            <span className="font-medium text-stone-900">{selected.size}</span> selected
+            {t("selectedCount", { count: selected.size })}
           </span>
           <button
             onClick={runImport}
             disabled={importing || selected.size === 0}
             className="btn-primary"
           >
-            {importing ? "Importing…" : `Import ${selected.size}`}
+            {importing ? t("importing") : t("importN", { count: selected.size })}
           </button>
         </div>
       </div>

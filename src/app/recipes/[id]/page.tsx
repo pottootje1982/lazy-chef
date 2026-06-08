@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { deleteRecipe } from "@/app/actions";
 import { normalizeIngredient, defaultOrderCount } from "@/lib/translate";
 import { isLikelyEnglish } from "@/lib/nl-dict";
-import { CATEGORY_LABEL } from "@/lib/categories";
+import { CATEGORY_KEYS } from "@/lib/categories";
 import { productImageUrl } from "@/lib/picnic";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
 import RecipeSelectToggle from "./RecipeSelectToggle";
@@ -19,6 +20,8 @@ export default async function RecipeDetailPage({
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
 
+  const t = await getTranslations("recipeDetail");
+  const tc = await getTranslations("categories");
   const { id } = await params;
   const recipe = await prisma.recipe.findUnique({ where: { id } });
   if (!recipe || recipe.userId !== session.user.id) notFound();
@@ -68,7 +71,7 @@ export default async function RecipeDetailPage({
   return (
     <article className="mx-auto max-w-3xl">
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
-        ← Back to recipes
+        {t("backToRecipes")}
       </Link>
 
       <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
@@ -83,10 +86,10 @@ export default async function RecipeDetailPage({
           {isGuest ? null : (
             <>
               <Link href={`/recipes/${recipe.id}/edit`} className="btn-secondary">
-                Edit
+                {t("edit")}
               </Link>
               <form action={deleteAction}>
-                <button className="btn-danger">Delete</button>
+                <button className="btn-danger">{t("delete")}</button>
               </form>
             </>
           )}
@@ -103,7 +106,7 @@ export default async function RecipeDetailPage({
             rel="noopener noreferrer"
             className="text-brand-600 hover:underline"
           >
-            📷 View original scan
+            {t("viewOriginalScan")}
           </a>
         </p>
       ) : null}
@@ -111,17 +114,17 @@ export default async function RecipeDetailPage({
       <div className="mt-6 flex flex-wrap gap-6 text-sm text-stone-600">
         {recipe.servings ? (
           <span>
-            <strong>Servings:</strong> {recipe.servings}
+            <strong>{t("servings")}:</strong> {recipe.servings}
           </span>
         ) : null}
         {recipe.prepTime ? (
           <span>
-            <strong>Prep:</strong> {recipe.prepTime}
+            <strong>{t("prep")}:</strong> {recipe.prepTime}
           </span>
         ) : null}
         {recipe.cookTime ? (
           <span>
-            <strong>Cook:</strong> {recipe.cookTime}
+            <strong>{t("cook")}:</strong> {recipe.cookTime}
           </span>
         ) : null}
       </div>
@@ -129,7 +132,7 @@ export default async function RecipeDetailPage({
       {recipe.origin === "scan" ? (
         <div className="mt-4">
           <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-600">
-            📷 Scanned
+            {t("scannedBadge")}
           </span>
         </div>
       ) : null}
@@ -141,7 +144,7 @@ export default async function RecipeDetailPage({
               key={c}
               className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
             >
-              {CATEGORY_LABEL[c] ?? c}
+              {(CATEGORY_KEYS as readonly string[]).includes(c) ? tc(c) : c}
             </span>
           ))}
         </div>
@@ -163,10 +166,10 @@ export default async function RecipeDetailPage({
       <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
         <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Ingredients</h2>
+            <h2 className="text-lg font-semibold">{t("ingredients")}</h2>
             {isGuest || picnicLinked ? null : (
               <Link href="/settings" className="text-xs text-brand-600 hover:underline">
-                Connect Picnic
+                {t("connectPicnic")}
               </Link>
             )}
           </div>
@@ -180,7 +183,7 @@ export default async function RecipeDetailPage({
         </section>
 
         <section>
-          <h2 className="mb-3 text-lg font-semibold">Instructions</h2>
+          <h2 className="mb-3 text-lg font-semibold">{t("instructions")}</h2>
           {recipe.instructions.length ? (
             <ol className="space-y-4 text-sm">
               {recipe.instructions.map((step, i) => (
@@ -193,14 +196,14 @@ export default async function RecipeDetailPage({
               ))}
             </ol>
           ) : (
-            <p className="text-sm text-stone-400">No instructions listed.</p>
+            <p className="text-sm text-stone-400">{t("noInstructions")}</p>
           )}
         </section>
       </div>
 
       {recipe.sourceUrl ? (
         <p className="mt-8 text-sm text-stone-400">
-          Source:{" "}
+          {t("source")}{" "}
           <a
             href={recipe.sourceUrl}
             target="_blank"

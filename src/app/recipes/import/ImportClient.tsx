@@ -1,11 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { createRecipe } from "@/app/actions";
 import RecipeForm, { type RecipeFormValues } from "@/components/RecipeForm";
 import { classify } from "@/lib/categories";
 
 export default function ImportClient() {
+  const t = useTranslations("import");
+  const tErr = useTranslations("errors");
+  const tForm = useTranslations("recipeForm");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +28,7 @@ export default function ImportClient() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error ?? "Failed to import recipe.");
+        setError(data.error ?? tErr("importFailed"));
         return;
       }
       const r = data.recipe;
@@ -47,7 +51,7 @@ export default function ImportClient() {
       setScraped(values);
       setPartial(values.ingredients.length === 0 && values.instructions.length === 0);
     } catch {
-      setError("Something went wrong fetching that page.");
+      setError(tErr("fetchPageFailed"));
     } finally {
       setLoading(false);
     }
@@ -57,22 +61,15 @@ export default function ImportClient() {
     return (
       <div className="space-y-4">
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          {partial ? (
-            <>
-              We found the page but couldn&apos;t extract structured recipe data. We&apos;ve filled
-              in what we could — please add the ingredients and steps below.
-            </>
-          ) : (
-            <>Imported! Review the details below and save.</>
-          )}
+          {partial ? t("partial") : t("imported")}
           <button
             onClick={() => setScraped(null)}
             className="ml-2 text-green-700 underline hover:text-green-900"
           >
-            Import a different URL
+            {t("importDifferentUrl")}
           </button>
         </div>
-        <RecipeForm action={createRecipe} initial={scraped} submitLabel="Save recipe" />
+        <RecipeForm action={createRecipe} initial={scraped} submitLabel={tForm("save")} />
       </div>
     );
   }
@@ -81,7 +78,7 @@ export default function ImportClient() {
     <form onSubmit={handleImport} className="card space-y-4 p-5">
       <div>
         <label className="label" htmlFor="url">
-          Recipe URL
+          {t("urlLabel")}
         </label>
         <input
           id="url"
@@ -89,7 +86,7 @@ export default function ImportClient() {
           required
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.bbcgoodfood.com/recipes/…"
+          placeholder={t("urlPlaceholder")}
           className="input"
         />
       </div>
@@ -99,7 +96,7 @@ export default function ImportClient() {
         </div>
       ) : null}
       <button type="submit" className="btn-primary" disabled={loading}>
-        {loading ? "Fetching…" : "Import recipe"}
+        {loading ? t("fetching") : t("importButton")}
       </button>
     </form>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { productImageUrl } from "@/lib/picnic";
@@ -14,6 +15,7 @@ export default async function GroceriesPage() {
   const session = await auth();
   if (!session?.user?.id) redirect("/login");
   const isGuest = Boolean(session.user.isGuest);
+  const t = await getTranslations("groceries");
 
   const [user, lists] = await Promise.all([
     prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
@@ -32,11 +34,8 @@ export default async function GroceriesPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold">Weekly groceries</h1>
-      <p className="mt-1 text-sm text-stone-500">
-        Reusable lists of Picnic products. Select them on the recipes page to order alongside (or
-        instead of) recipes.
-      </p>
+      <h1 className="text-2xl font-bold">{t("title")}</h1>
+      <p className="mt-1 text-sm text-stone-500">{t("subtitle")}</p>
 
       {!isGuest ? (
         <form action={addList} className="mt-5 flex gap-2">
@@ -44,26 +43,26 @@ export default async function GroceriesPage() {
             name="name"
             required
             maxLength={100}
-            placeholder="New list name (e.g. Weekly basics)"
+            placeholder={t("newListPlaceholder")}
             className="input"
           />
-          <button className="btn-primary flex-none">Create list</button>
+          <button className="btn-primary flex-none">{t("createList")}</button>
         </form>
       ) : null}
 
       {!isGuest && !picnicLinked ? (
         <p className="mt-3 text-sm text-stone-500">
           <Link href="/settings" className="text-brand-600 hover:underline">
-            Connect Picnic
+            {t("connectPicnic")}
           </Link>{" "}
-          to search for products to add.
+          {t("connectHint")}
         </p>
       ) : null}
 
       <div className="mt-6 space-y-5">
         {lists.length === 0 ? (
           <div className="card p-8 text-center text-sm text-stone-500">
-            No grocery lists yet.{isGuest ? "" : " Create one above to get started."}
+            {t("noLists")}{isGuest ? "" : t("noListsCreate")}
           </div>
         ) : (
           lists.map((list) => {
@@ -81,7 +80,7 @@ export default async function GroceriesPage() {
                 <h2 className="font-semibold">🛒 {list.name}</h2>
                 <ul className="mt-3 space-y-1 text-sm text-stone-600">
                   {items.length === 0 ? (
-                    <li className="text-stone-400">No products.</li>
+                    <li className="text-stone-400">{t("noProductsGuest")}</li>
                   ) : (
                     items.map((it) => (
                       <li key={it.id} className="flex justify-between gap-3">
