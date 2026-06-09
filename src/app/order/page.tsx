@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { aggregateOrder, defaultSelectedIds, sameSelection, type CartItem } from "@/lib/orders";
 import OrderCart from "./OrderCart";
 import DraftCartSection from "./DraftCartSection";
+import ClearCartButton from "./ClearCartButton";
 
 function parseIds(value: string | undefined): string[] {
   return (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -86,7 +87,10 @@ export default async function OrderPage({
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
         {t("backToRecipes")}
       </Link>
-      <h1 className="mt-3 text-2xl font-bold">{t("title")}</h1>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
+        {isGuest ? null : <ClearCartButton />}
+      </div>
       <p className="mt-1 text-sm text-stone-500">
         {t("summary", { count: sourceCount })}
         {agg.unmappedCount > 0 ? (

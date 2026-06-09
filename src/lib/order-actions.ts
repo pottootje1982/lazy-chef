@@ -76,6 +76,16 @@ export async function removeDraftCartItem(picnicId: string): Promise<void> {
   revalidatePath("/order");
 }
 
+// Empty the pending order: delete the user's DRAFT order entirely (basket items,
+// recipe/list selection and product picks). A fresh draft is created on demand.
+export async function clearDraftOrder(): Promise<void> {
+  const userId = await writerId();
+  if (!userId) return;
+  await prisma.order.deleteMany({ where: { userId, status: "DRAFT" } });
+  revalidatePath("/", "layout");
+  revalidatePath("/order");
+}
+
 // Autosave the current product selection onto the user's DRAFT order.
 export async function saveOrderSelection(selectedProductIds: string[]): Promise<void> {
   const userId = await writerId();

@@ -177,6 +177,15 @@ export default function NavBar({
                       {l.label}
                     </Link>
                   ))}
+                  <form action={signOutAction} className="mt-1 border-t border-stone-100 pt-1">
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-stone-700 hover:bg-stone-100"
+                    >
+                      <SignOutIcon />
+                      {t("signOut")}
+                    </button>
+                  </form>
                 </div>
               ) : null}
             </div>
@@ -185,12 +194,6 @@ export default function NavBar({
               <UserIcon />
             </span>
           )}
-
-          <form action={signOutAction}>
-            <button type="submit" title={t("signOut")} aria-label={t("signOut")} className={iconBtn}>
-              <SignOutIcon />
-            </button>
-          </form>
         </div>
       </nav>
 

@@ -261,7 +261,9 @@
     "connectToOrder": "Connect Picnic to order",
     "addToCartError": "Something went wrong adding to your Picnic cart.",
     "addedItems": "Added items",
-    "removeFromCart": "Remove from cart"
+    "removeFromCart": "Remove from cart",
+    "clearCart": "Clear cart",
+    "clearCartConfirm": "Empty the whole order? This removes all selected recipes, lists and added products."
   },
   "cart": {
     "added": "Added to cart"

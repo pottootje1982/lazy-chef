@@ -261,7 +261,9 @@
     "connectToOrder": "Picnic koppelen om te bestellen",
     "addToCartError": "Er ging iets mis bij het toevoegen aan je Picnic-mand.",
     "addedItems": "Toegevoegde producten",
-    "removeFromCart": "Uit mandje verwijderen"
+    "removeFromCart": "Uit mandje verwijderen",
+    "clearCart": "Mandje legen",
+    "clearCartConfirm": "De hele bestelling legen? Dit verwijdert alle geselecteerde recepten, lijsten en toegevoegde producten."
   },
   "cart": {
     "added": "Toegevoegd aan mandje"
