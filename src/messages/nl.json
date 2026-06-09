@@ -23,7 +23,8 @@
     "accountMenu": "Accountmenu",
     "signOut": "Uitloggen",
     "openMenu": "Menu openen",
-    "closeMenu": "Menu sluiten"
+    "closeMenu": "Menu sluiten",
+    "cart": "Mandje"
   },
   "account": {
     "weekPlans": "Weekmenu's",
@@ -155,6 +156,8 @@
     "add": "Toevoegen",
     "added": "Toegevoegd",
     "order": "Bestellen →",
+    "addToCart": "In mandje",
+    "addAllToCart": "Alles in mandje",
     "deleteList": "Lijst verwijderen",
     "deleteConfirm": "\"{name}\" en alle {count, plural, one {# product} other {# producten}} verwijderen? Dit kan niet ongedaan worden gemaakt.",
     "productCount": "{count, plural, one {# product} other {# producten}}",
@@ -256,7 +259,12 @@
     "adding": "Toevoegen…",
     "addToCart": "{count} aan Picnic-mand toevoegen",
     "connectToOrder": "Picnic koppelen om te bestellen",
-    "addToCartError": "Er ging iets mis bij het toevoegen aan je Picnic-mand."
+    "addToCartError": "Er ging iets mis bij het toevoegen aan je Picnic-mand.",
+    "addedItems": "Toegevoegde producten",
+    "removeFromCart": "Uit mandje verwijderen"
+  },
+  "cart": {
+    "added": "Toegevoegd aan mandje"
   },
   "orders": {
     "title": "Bestellingen",
@@ -414,7 +422,8 @@
     "increaseQuantity": "Aantal verhogen",
     "decreaseQuantity": "Aantal verlagen",
     "orderQtyTooltip": "Bestelaantal — scrol of gebruik de pijltjes",
-    "orderQtyTooltipOverride": "Bestelaantal (recept: {default}) — scrol of gebruik de pijltjes"
+    "orderQtyTooltipOverride": "Bestelaantal (recept: {default}) — scrol of gebruik de pijltjes",
+    "addToCart": "In mandje"
   },
   "categories": {
     "vegetarian": "Vegetarisch",

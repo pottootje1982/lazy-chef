@@ -29,8 +29,18 @@ export type OrderRow = { label: string; mappedName: string | null; unmapped: boo
 export type OrderSection = {
   id: string;
   title: string;
-  kind: "recipe" | "list";
+  kind: "recipe" | "list" | "cart";
   rows: OrderRow[];
+};
+
+// A product snapshot added to the draft cart via a "basket" button.
+export type CartItem = {
+  picnicId: string;
+  name: string;
+  imageId: string | null;
+  priceCents: number | null;
+  unitQuantity: string | null;
+  quantity: number;
 };
 
 export type AggregatedOrder = {
@@ -55,6 +65,7 @@ export async function aggregateOrder(
   userId: string,
   recipeIds: string[],
   listIds: string[] = [],
+  cartItems: CartItem[] = [],
 ): Promise<AggregatedOrder> {
   const [recipes, mappings, lists, user] = await Promise.all([
     prisma.recipe.findMany({
@@ -156,6 +167,36 @@ export async function aggregateOrder(
       return { label: it.productName, mappedName: null, unmapped: false };
     });
     sections.push({ id: list.id, title: list.name, kind: "list", rows });
+  }
+
+  // Ad-hoc products added via "basket" buttons (the in-app draft cart). Treated
+  // like curated grocery items → default on.
+  if (cartItems.length > 0) {
+    const rows = cartItems.map((it): OrderRow => {
+      const existing = cart.get(it.picnicId);
+      if (existing) {
+        existing.quantity += it.quantity;
+        existing.fromGrocery = true;
+      } else {
+        cart.set(it.picnicId, {
+          picnicId: it.picnicId,
+          name: it.name,
+          imageId: it.imageId,
+          imageUrl: productImageUrl(it.imageId),
+          priceCents: it.priceCents,
+          unitQuantity: it.unitQuantity,
+          quantity: it.quantity,
+          recipeCount: 0,
+          ingredientKey: "",
+          isStaple: false,
+          defaultSelected: false,
+          fromGrocery: true,
+          stapleOverride: null,
+        });
+      }
+      return { label: it.name, mappedName: null, unmapped: false };
+    });
+    sections.push({ id: "__cart", title: "", kind: "cart", rows });
   }
 
   const products: OrderProduct[] = [...cart.values()].map((it) => {

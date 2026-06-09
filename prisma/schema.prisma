@@ -170,6 +170,9 @@ model Order {
   listTitles         String[] // snapshot of list names for display
   selectedProductIds String[] // currently-ticked Picnic product ids
   selectedQuantities Json? // per-product quantity overrides { picnicId: qty }
+  // Ad-hoc products added to the draft via "basket" buttons (grocery items,
+  // recipe ingredients): [{ picnicId, name, imageId, priceCents, unitQuantity, quantity }]
+  cartItems          Json?
   weekPlanId         String? // set when ordering from a week planning; stamps it on placement
   unavailableItems   String[] // snapshot of not-available ingredient lines (buy elsewhere)
   placedAt           DateTime?

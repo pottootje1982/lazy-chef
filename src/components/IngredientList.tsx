@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
+import AddToCartButton from "@/components/AddToCartButton";
 import {
   markIngredientUnavailable,
   markIngredientAvailable,
@@ -14,6 +15,7 @@ export type LinkedProduct = {
   mappingId: string;
   picnicId: string;
   name: string;
+  imageId: string | null;
   imageUrl: string | null;
   priceCents: number | null;
   unitQuantity: string | null;
@@ -32,6 +34,46 @@ function euro(cents: number | null): string | null {
   if (cents == null) return null;
   return "€" + (cents / 100).toFixed(2).replace(".", ",");
 }
+
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+    </svg>
+  );
+}
+
+function UnlinkIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72" />
+      <path d="M5.17 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.71-1.72" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <line x1="21" y1="21" x2="16.5" y2="16.5" />
+    </svg>
+  );
+}
+
+function NotAvailableIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+    </svg>
+  );
+}
+
+const ingredientIconBtn =
+  "flex h-8 w-8 flex-none items-center justify-center rounded border border-stone-200 text-stone-500 hover:bg-stone-100";
 
 // Compact per-ingredient order quantity (persisted as a per-recipe override).
 // Number + tiny up/down arrows; also responds to the mouse wheel.
@@ -81,7 +123,7 @@ function QtySpinner({
           ? t("orderQtyTooltipOverride", { default: defaultQuantity })
           : t("orderQtyTooltip")
       }
-      className="flex flex-none items-center gap-0.5 rounded border border-stone-200 px-1 py-0.5"
+      className="flex h-8 flex-none items-center gap-1 rounded border border-stone-200 px-2"
     >
       <span className={`text-sm tabular-nums ${overridden ? "font-semibold text-brand-700" : "text-stone-700"}`}>
         ×{qty}
@@ -161,7 +203,7 @@ function Row({
           <span className="text-sm">{item.raw}</span>
         </div>
         {readOnly ? null : (
-          <div className="flex flex-none items-center gap-3">
+          <div className="flex flex-none items-center gap-1.5">
             {unavailable ? (
               <button
                 onClick={() => setUnavail(false)}
@@ -174,9 +216,11 @@ function Row({
                 {product ? null : picnicLinked ? (
                   <button
                     onClick={() => setOpen(true)}
-                    className="text-xs font-medium text-brand-600 hover:underline"
+                    title={open ? t("searching") : t("linkProduct")}
+                    aria-label={t("linkProduct")}
+                    className={`${ingredientIconBtn} hover:text-brand-600`}
                   >
-                    {open ? t("searching") : t("linkProduct")}
+                    <SearchIcon />
                   </button>
                 ) : (
                   <Link
@@ -188,9 +232,11 @@ function Row({
                 )}
                 <button
                   onClick={() => setUnavail(true)}
-                  className="text-xs text-stone-400 hover:text-amber-700"
+                  title={t("notAvailable")}
+                  aria-label={t("notAvailable")}
+                  className={`${ingredientIconBtn} hover:text-amber-700`}
                 >
-                  {t("notAvailable")}
+                  <NotAvailableIcon />
                 </button>
               </>
             )}
@@ -202,9 +248,10 @@ function Row({
         <p className="mt-2 text-xs text-amber-700">{t("notAvailableNote")}</p>
       ) : null}
 
-      {/* Linked product summary */}
+      {/* Linked product summary. No right padding so the control row's last
+          button (unlink) lines up under the header's "Not available" button. */}
       {!unavailable && product ? (
-        <div className="mt-2 flex items-center gap-3 rounded-lg bg-stone-50 p-2">
+        <div className="mt-2 flex items-center gap-3 rounded-lg bg-stone-50 py-2 pl-2 pr-0">
           {product.imageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -224,25 +271,44 @@ function Row({
             </p>
           </div>
           {readOnly ? null : (
-            <>
+            <div className="flex flex-none items-center gap-1.5">
               <QtySpinner
                 recipeId={recipeId}
                 ingredientKey={item.ingredientKey}
                 initial={item.quantity}
                 defaultQuantity={item.defaultQuantity}
               />
-              <div className="flex flex-none flex-col gap-1">
-                <button
-                  onClick={() => setOpen(true)}
-                  className="text-xs text-stone-500 hover:text-brand-600"
-                >
-                  {t("change")}
-                </button>
-                <button onClick={unlink} className="text-xs text-stone-500 hover:text-red-600">
-                  {t("unlink")}
-                </button>
-              </div>
-            </>
+              <AddToCartButton
+                label={t("addToCart")}
+                sizeClass="h-8 w-8"
+                items={[
+                  {
+                    picnicId: product.picnicId,
+                    name: product.name,
+                    imageId: product.imageId,
+                    priceCents: product.priceCents,
+                    unitQuantity: product.unitQuantity,
+                    quantity: item.quantity,
+                  },
+                ]}
+              />
+              <button
+                onClick={() => setOpen(true)}
+                title={t("change")}
+                aria-label={t("change")}
+                className={`${ingredientIconBtn} hover:text-brand-600`}
+              >
+                <EditIcon />
+              </button>
+              <button
+                onClick={unlink}
+                title={t("unlink")}
+                aria-label={t("unlink")}
+                className={`${ingredientIconBtn} hover:text-red-600`}
+              >
+                <UnlinkIcon />
+              </button>
+            </div>
           )}
         </div>
       ) : null}
@@ -275,6 +341,7 @@ function Row({
                   mappingId: data.mapping.id,
                   picnicId: p.picnicId,
                   name: p.name,
+                  imageId: p.imageId,
                   imageUrl: p.imageUrl,
                   priceCents: p.priceCents,
                   unitQuantity: p.unitQuantity,

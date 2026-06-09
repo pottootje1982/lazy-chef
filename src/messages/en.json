@@ -23,7 +23,8 @@
     "accountMenu": "Account menu",
     "signOut": "Sign out",
     "openMenu": "Open menu",
-    "closeMenu": "Close menu"
+    "closeMenu": "Close menu",
+    "cart": "Cart"
   },
   "account": {
     "weekPlans": "Week plans",
@@ -155,6 +156,8 @@
     "add": "Add",
     "added": "Added",
     "order": "Order →",
+    "addToCart": "Add to cart",
+    "addAllToCart": "Add all to cart",
     "deleteList": "Delete list",
     "deleteConfirm": "Delete \"{name}\" and all {count, plural, one {# product} other {# products}}? This can't be undone.",
     "productCount": "{count, plural, one {# product} other {# products}}",
@@ -256,7 +259,12 @@
     "adding": "Adding…",
     "addToCart": "Add {count} to Picnic cart",
     "connectToOrder": "Connect Picnic to order",
-    "addToCartError": "Something went wrong adding to your Picnic cart."
+    "addToCartError": "Something went wrong adding to your Picnic cart.",
+    "addedItems": "Added items",
+    "removeFromCart": "Remove from cart"
+  },
+  "cart": {
+    "added": "Added to cart"
   },
   "orders": {
     "title": "Orders",
@@ -414,7 +422,8 @@
     "increaseQuantity": "Increase quantity",
     "decreaseQuantity": "Decrease quantity",
     "orderQtyTooltip": "Order quantity — scroll or use arrows",
-    "orderQtyTooltipOverride": "Order quantity (recipe: {default}) — scroll or use arrows"
+    "orderQtyTooltipOverride": "Order quantity (recipe: {default}) — scroll or use arrows",
+    "addToCart": "Add to cart"
   },
   "categories": {
     "vegetarian": "Vegetarian",

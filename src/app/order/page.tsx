@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { aggregateOrder, defaultSelectedIds, sameSelection } from "@/lib/orders";
+import { aggregateOrder, defaultSelectedIds, sameSelection, type CartItem } from "@/lib/orders";
 import OrderCart from "./OrderCart";
+import DraftCartSection from "./DraftCartSection";
 
 function parseIds(value: string | undefined): string[] {
   return (value ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -21,14 +22,29 @@ export default async function OrderPage({
   const isGuest = Boolean(session.user.isGuest);
 
   const sp = await searchParams;
-  const recipeIds = parseIds(sp.ids);
-  const listIds = parseIds(sp.lists);
-  const weekPlanId = sp.weekPlanId?.trim() || null;
-  if (recipeIds.length === 0 && listIds.length === 0) redirect("/recipes");
+  let recipeIds = parseIds(sp.ids);
+  let listIds = parseIds(sp.lists);
+  let weekPlanId = sp.weekPlanId?.trim() || null;
+  const noParams = recipeIds.length === 0 && listIds.length === 0;
+
+  // The user's single DRAFT order — also the "basket" opened from the top menu.
+  const draft = isGuest
+    ? null
+    : await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
+
+  // No params → opened from the nav basket: resume the existing draft.
+  if (noParams) {
+    if (!draft) redirect("/recipes");
+    recipeIds = draft.recipeIds;
+    listIds = draft.listIds;
+    weekPlanId = draft.weekPlanId ?? null;
+  }
+
+  const cartItems = (draft?.cartItems as CartItem[] | null) ?? [];
 
   const [user, agg] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { picnicAuthKey: true } }),
-    aggregateOrder(userId, recipeIds, listIds),
+    aggregateOrder(userId, recipeIds, listIds, cartItems),
   ]);
   if (agg.sections.length === 0) redirect("/recipes");
 
@@ -40,7 +56,6 @@ export default async function OrderPage({
   let initialSelectedIds = defaultSelectedIds(agg.products);
   let initialQuantities: Record<string, number> = {};
   if (!isGuest) {
-    const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
     if (draft && sameSelection(draft.recipeIds, draft.listIds, recipeIds, listIds)) {
       initialSelectedIds = draft.selectedProductIds;
       initialQuantities = (draft.selectedQuantities ?? {}) as Record<string, number>;
@@ -92,9 +107,19 @@ export default async function OrderPage({
         </div>
       ) : null}
 
+      {/* Basket-added products (the in-app cart), with remove buttons. */}
+      {cartItems.length > 0 ? (
+        <DraftCartSection
+          title={t("addedItems")}
+          items={cartItems.map((c) => ({ picnicId: c.picnicId, name: c.name }))}
+        />
+      ) : null}
+
       {/* Per-source breakdown (recipes + grocery lists). */}
       <div className="mt-6 space-y-4">
-        {agg.sections.map((section) => (
+        {agg.sections
+          .filter((section) => section.kind !== "cart")
+          .map((section) => (
           <section key={`${section.kind}-${section.id}`} className="card p-4">
             <div className="mb-2 flex items-center justify-between">
               <h2 className="font-semibold">

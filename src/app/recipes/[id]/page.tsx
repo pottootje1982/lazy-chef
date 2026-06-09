@@ -55,6 +55,7 @@ export default async function RecipeDetailPage({
             mappingId: m.id,
             picnicId: m.picnicId,
             name: m.productName,
+            imageId: m.imageId,
             imageUrl: productImageUrl(m.imageId),
             priceCents: m.priceCents,
             unitQuantity: m.unitQuantity,
@@ -69,7 +70,7 @@ export default async function RecipeDetailPage({
   const deleteAction = deleteRecipe.bind(null, recipe.id);
 
   return (
-    <article className="mx-auto max-w-3xl">
+    <article className="mx-auto max-w-[52rem]">
       <Link href="/recipes" className="text-sm text-stone-500 hover:text-stone-900">
         {t("backToRecipes")}
       </Link>

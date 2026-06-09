@@ -70,6 +70,7 @@ export default async function GroceriesPage() {
               id: it.id,
               picnicId: it.picnicId,
               productName: it.productName,
+              imageId: it.imageId,
               imageUrl: productImageUrl(it.imageId),
               priceCents: it.priceCents,
               unitQuantity: it.unitQuantity,

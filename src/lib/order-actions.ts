@@ -3,13 +3,77 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { aggregateOrder } from "@/lib/orders";
+import { aggregateOrder, type CartItem } from "@/lib/orders";
 
 // Returns the non-guest user id, or null if not allowed to persist orders.
 async function writerId(): Promise<string | null> {
   const session = await auth();
   if (!session?.user?.id || session.user.isGuest) return null;
   return session.user.id;
+}
+
+const clampQty = (n: unknown) => Math.max(1, Math.min(99, Math.floor(Number(n) || 1)));
+
+// Add one or more products to the user's draft cart (basket buttons). Merges by
+// picnicId (summing quantities) and pre-ticks them in the order overview.
+export async function addToDraftCart(items: CartItem[]): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !Array.isArray(items) || items.length === 0) return;
+
+  const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
+  const current: CartItem[] = (draft?.cartItems as CartItem[] | null) ?? [];
+  const byId = new Map(current.map((c) => [c.picnicId, { ...c }]));
+  for (const it of items) {
+    if (!it?.picnicId) continue;
+    const existing = byId.get(it.picnicId);
+    if (existing) {
+      existing.quantity = clampQty(existing.quantity + clampQty(it.quantity));
+    } else {
+      byId.set(it.picnicId, {
+        picnicId: it.picnicId,
+        name: it.name,
+        imageId: it.imageId ?? null,
+        priceCents: it.priceCents ?? null,
+        unitQuantity: it.unitQuantity ?? null,
+        quantity: clampQty(it.quantity),
+      });
+    }
+  }
+  const cartItems = [...byId.values()];
+  // Pre-tick the added products in the order overview.
+  const selected = new Set(draft?.selectedProductIds ?? []);
+  for (const c of cartItems) selected.add(c.picnicId);
+  const selectedProductIds = [...selected];
+
+  if (draft) {
+    await prisma.order.update({
+      where: { id: draft.id },
+      data: { cartItems, selectedProductIds },
+    });
+  } else {
+    await prisma.order.create({
+      data: { userId, status: "DRAFT", cartItems, selectedProductIds },
+    });
+  }
+  revalidatePath("/", "layout");
+  revalidatePath("/order");
+}
+
+// Remove a product previously added to the draft cart.
+export async function removeDraftCartItem(picnicId: string): Promise<void> {
+  const userId = await writerId();
+  if (!userId || !picnicId) return;
+  const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
+  if (!draft) return;
+  const current: CartItem[] = (draft.cartItems as CartItem[] | null) ?? [];
+  const cartItems = current.filter((c) => c.picnicId !== picnicId);
+  const selectedProductIds = draft.selectedProductIds.filter((id) => id !== picnicId);
+  await prisma.order.update({
+    where: { id: draft.id },
+    data: { cartItems, selectedProductIds },
+  });
+  revalidatePath("/", "layout");
+  revalidatePath("/order");
 }
 
 // Autosave the current product selection onto the user's DRAFT order.
@@ -54,6 +118,7 @@ export async function placeCurrentOrder(): Promise<void> {
     userId,
     draft.recipeIds,
     draft.listIds,
+    (draft.cartItems as CartItem[] | null) ?? [],
   );
   const chosen = products.filter((p) => draft.selectedProductIds.includes(p.picnicId));
   if (chosen.length === 0) return;

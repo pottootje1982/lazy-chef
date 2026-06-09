@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
@@ -11,16 +10,31 @@ import {
   setGroceryItemQuantity,
 } from "@/lib/grocery-actions";
 import PicnicProductSearch from "@/components/PicnicProductSearch";
+import AddToCartButton from "@/components/AddToCartButton";
+import type { CartItem } from "@/lib/orders";
 
 type Item = {
   id: string;
   picnicId: string;
   productName: string;
+  imageId: string | null;
   imageUrl: string | null;
   priceCents: number | null;
   unitQuantity: string | null;
   quantity: number;
 };
+
+// Map a grocery item to a draft-cart product snapshot.
+function toCartItem(it: Item): CartItem {
+  return {
+    picnicId: it.picnicId,
+    name: it.productName,
+    imageId: it.imageId,
+    priceCents: it.priceCents,
+    unitQuantity: it.unitQuantity,
+    quantity: it.quantity,
+  };
+}
 
 function QtyStepper({ id, initial }: { id: string; initial: number }) {
   const t = useTranslations("groceries");
@@ -113,12 +127,11 @@ export default function GroceryListEditor({
         </div>
         <div className="flex flex-none items-center gap-3">
           {list.items.length > 0 ? (
-            <Link
-              href={`/order?lists=${list.id}`}
-              className="rounded-md bg-brand-600 px-3 py-1 text-xs font-medium text-white hover:bg-brand-700"
-            >
-              {t("order")}
-            </Link>
+            <AddToCartButton
+              variant="labeled"
+              label={t("addAllToCart")}
+              items={list.items.map(toCartItem)}
+            />
           ) : null}
           <button
             onClick={() => {
@@ -178,6 +191,7 @@ export default function GroceryListEditor({
                 </p>
               </div>
               <QtyStepper id={it.id} initial={it.quantity} />
+              <AddToCartButton items={[toCartItem(it)]} label={t("addToCart")} />
               <button
                 onClick={() => removeGroceryItem(it.id)}
                 className="flex-none px-2 text-stone-400 hover:text-red-600"
