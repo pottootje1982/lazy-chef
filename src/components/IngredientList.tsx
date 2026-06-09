@@ -35,25 +35,6 @@ function euro(cents: number | null): string | null {
   return "€" + (cents / 100).toFixed(2).replace(".", ",");
 }
 
-function EditIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 20h9" />
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
-    </svg>
-  );
-}
-
-function UnlinkIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72" />
-      <path d="M5.17 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.71-1.72" />
-      <line x1="2" y1="2" x2="22" y2="22" />
-    </svg>
-  );
-}
-
 function SearchIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -63,11 +44,30 @@ function SearchIcon() {
   );
 }
 
+function UnlinkIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18.84 12.25l1.72-1.71a4 4 0 0 0-5.66-5.66l-1.71 1.72" />
+      <path d="M5.17 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.71-1.72" />
+      <line x1="2" y1="2" x2="22" y2="22" />
+    </svg>
+  );
+}
+
 function NotAvailableIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
     </svg>
   );
 }
@@ -211,35 +211,25 @@ function Row({
               >
                 {t("markAvailable")}
               </button>
-            ) : (
-              <>
-                {product ? null : picnicLinked ? (
-                  <button
-                    onClick={() => setOpen(true)}
-                    title={open ? t("searching") : t("linkProduct")}
-                    aria-label={t("linkProduct")}
-                    className={`${ingredientIconBtn} hover:text-brand-600`}
-                  >
-                    <SearchIcon />
-                  </button>
-                ) : (
-                  <Link
-                    href="/settings"
-                    className="text-xs font-medium text-stone-400 hover:text-brand-600"
-                  >
-                    {t("connectPicnic")}
-                  </Link>
-                )}
+            ) : !product ? (
+              picnicLinked ? (
                 <button
-                  onClick={() => setUnavail(true)}
-                  title={t("notAvailable")}
-                  aria-label={t("notAvailable")}
-                  className={`${ingredientIconBtn} hover:text-amber-700`}
+                  onClick={() => setOpen(true)}
+                  title={open ? t("searching") : t("linkProduct")}
+                  aria-label={t("linkProduct")}
+                  className={`${ingredientIconBtn} hover:text-brand-600`}
                 >
-                  <NotAvailableIcon />
+                  <SearchIcon />
                 </button>
-              </>
-            )}
+              ) : (
+                <Link
+                  href="/settings"
+                  className="text-xs font-medium text-stone-400 hover:text-brand-600"
+                >
+                  {t("connectPicnic")}
+                </Link>
+              )
+            ) : null}
           </div>
         )}
       </div>
@@ -248,28 +238,35 @@ function Row({
         <p className="mt-2 text-xs text-amber-700">{t("notAvailableNote")}</p>
       ) : null}
 
-      {/* Linked product summary. No right padding so the control row's last
-          button (unlink) lines up under the header's "Not available" button. */}
+      {/* Linked product summary. Click the image/name to change the product. */}
       {!unavailable && product ? (
-        <div className="mt-2 flex items-center gap-3 rounded-lg bg-stone-50 py-2 pl-2 pr-0">
-          {product.imageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="h-12 w-12 flex-none rounded object-cover"
-            />
-          ) : (
-            <div className="flex h-12 w-12 flex-none items-center justify-center rounded bg-stone-200 text-lg">
-              🛒
+        <div className="mt-2 flex items-center gap-3 rounded-lg bg-stone-50 p-2">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            disabled={readOnly}
+            title={readOnly ? undefined : t("change")}
+            className="flex min-w-0 flex-1 items-center gap-3 text-left enabled:hover:opacity-80 disabled:cursor-default"
+          >
+            {product.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="h-12 w-12 flex-none rounded object-cover"
+              />
+            ) : (
+              <div className="flex h-12 w-12 flex-none items-center justify-center rounded bg-stone-200 text-lg">
+                🛒
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium">{product.name}</p>
+              <p className="text-xs text-stone-500">
+                {[product.unitQuantity, euro(product.priceCents)].filter(Boolean).join(" · ")}
+              </p>
             </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{product.name}</p>
-            <p className="text-xs text-stone-500">
-              {[product.unitQuantity, euro(product.priceCents)].filter(Boolean).join(" · ")}
-            </p>
-          </div>
+          </button>
           {readOnly ? null : (
             <div className="flex flex-none items-center gap-1.5">
               <QtySpinner
@@ -292,22 +289,6 @@ function Row({
                   },
                 ]}
               />
-              <button
-                onClick={() => setOpen(true)}
-                title={t("change")}
-                aria-label={t("change")}
-                className={`${ingredientIconBtn} hover:text-brand-600`}
-              >
-                <EditIcon />
-              </button>
-              <button
-                onClick={unlink}
-                title={t("unlink")}
-                aria-label={t("unlink")}
-                className={`${ingredientIconBtn} hover:text-red-600`}
-              >
-                <UnlinkIcon />
-              </button>
             </div>
           )}
         </div>
@@ -316,10 +297,38 @@ function Row({
       {/* Search panel */}
       {open ? (
         <div className="mt-2 rounded-lg border border-stone-200 bg-white p-3">
-          <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center justify-between">
             <span className="text-xs text-stone-500">{t("searchHint")}</span>
-            <button onClick={() => setOpen(false)} className="text-xs text-stone-400 hover:text-stone-700">
-              {t("close")}
+            <button
+              onClick={() => setOpen(false)}
+              title={t("close")}
+              aria-label={t("close")}
+              className="flex h-6 w-6 items-center justify-center rounded text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+            >
+              <CloseIcon />
+            </button>
+          </div>
+
+          {/* Secondary actions for this ingredient, below the search hint. */}
+          <div className="mb-2 mt-1 flex items-center gap-4 border-b border-stone-100 pb-2 text-xs">
+            {product ? (
+              <button
+                onClick={() => {
+                  void unlink();
+                  setOpen(false);
+                }}
+                className="flex items-center gap-1 font-medium text-stone-500 hover:text-red-600"
+              >
+                <UnlinkIcon />
+                {t("unlink")}
+              </button>
+            ) : null}
+            <button
+              onClick={() => setUnavail(true)}
+              className="flex items-center gap-1 font-medium text-stone-500 hover:text-amber-700"
+            >
+              <NotAvailableIcon />
+              {t("notAvailable")}
             </button>
           </div>
 

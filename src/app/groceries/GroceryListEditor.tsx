@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   renameList,
@@ -36,34 +36,59 @@ function toCartItem(it: Item): CartItem {
   };
 }
 
+// Compact quantity spinner: number + tiny up/down arrows, also responds to the
+// mouse wheel. Grocery quantities may go down to 0. Persists on change.
 function QtyStepper({ id, initial }: { id: string; initial: number }) {
   const t = useTranslations("groceries");
   const [qty, setQty] = useState(initial);
-  function change(delta: number) {
-    const next = Math.max(0, Math.min(99, qty + delta));
-    if (next === qty) return;
+  const qtyRef = useRef(initial);
+  const ref = useRef<HTMLDivElement>(null);
+
+  function bump(delta: number) {
+    const next = Math.max(0, Math.min(99, qtyRef.current + delta));
+    if (next === qtyRef.current) return;
+    qtyRef.current = next;
     setQty(next);
     void setGroceryItemQuantity(id, next).catch(() => {});
   }
+
+  // Scroll-to-change (non-passive so we can stop the page from scrolling).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      bump(e.deltaY < 0 ? 1 : -1);
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <div className="flex flex-none items-center gap-1">
-      <button
-        onClick={() => change(-1)}
-        disabled={qty <= 0}
-        className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-        aria-label={t("decreaseQuantity")}
-      >
-        −
-      </button>
-      <span className="w-5 text-center text-sm tabular-nums">{qty}</span>
-      <button
-        onClick={() => change(1)}
-        disabled={qty >= 99}
-        className="flex h-6 w-6 items-center justify-center rounded border border-stone-200 text-stone-600 hover:bg-stone-100 disabled:opacity-40"
-        aria-label={t("increaseQuantity")}
-      >
-        +
-      </button>
+    <div
+      ref={ref}
+      className="flex h-8 flex-none items-center gap-1 rounded border border-stone-200 px-2"
+    >
+      <span className="text-sm tabular-nums text-stone-700">{qty}</span>
+      <span className="flex flex-col leading-none">
+        <button
+          onClick={() => bump(1)}
+          disabled={qty >= 99}
+          className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
+          aria-label={t("increaseQuantity")}
+        >
+          ▲
+        </button>
+        <button
+          onClick={() => bump(-1)}
+          disabled={qty <= 0}
+          className="text-[9px] text-stone-400 hover:text-stone-700 disabled:opacity-30"
+          aria-label={t("decreaseQuantity")}
+        >
+          ▼
+        </button>
+      </span>
     </div>
   );
 }
@@ -191,7 +216,7 @@ export default function GroceryListEditor({
                 </p>
               </div>
               <QtyStepper id={it.id} initial={it.quantity} />
-              <AddToCartButton items={[toCartItem(it)]} label={t("addToCart")} />
+              <AddToCartButton items={[toCartItem(it)]} label={t("addToCart")} sizeClass="h-8 w-8" />
               <button
                 onClick={() => removeGroceryItem(it.id)}
                 className="flex-none px-2 text-stone-400 hover:text-red-600"
