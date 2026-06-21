@@ -58,6 +58,25 @@ test("extractFromHtml: English 'Ingredients'/'Method' headings with <ol> steps",
   assert.equal(r.servings, "4");
 });
 
+// Mirrors bakkriebels.nl: the recipe is <br>-separated lines inside a <p>,
+// with a Dutch intro line; ingredients are followed by a blank line + equipment.
+test("extractFromHtml reads <br>-separated lines inside a <p> (no list)", () => {
+  const $ = cheerio.load(`
+    <article>
+      <p>Dit heb je nodig voor 12 stuks:<br>6 blaadjes bladerdeeg<br>150 ml melk<br>36 kleine aardbeien<br><br>En verder:<br>ronde uitsteker<br>bakpapier</p>
+      <p>Zo ga je te werk:<br>Doe het ei met de suiker in een kom.<br>Verwarm in de magnetron.<br>Laat afkoelen.</p>
+    </article>`);
+  const r = extractFromHtml($);
+  // Stops before the blank line / "En verder:" equipment.
+  assert.deepEqual(r.ingredients, ["6 blaadjes bladerdeeg", "150 ml melk", "36 kleine aardbeien"]);
+  assert.deepEqual(r.instructions, [
+    "Doe het ei met de suiker in een kom.",
+    "Verwarm in de magnetron.",
+    "Laat afkoelen.",
+  ]);
+  assert.equal(r.servings, "12 stuks");
+});
+
 test("extractFromHtml returns empty when there's no recipe-like content", () => {
   const $ = cheerio.load("<main><p>Just a blog post with no lists.</p></main>");
   const r = extractFromHtml($);

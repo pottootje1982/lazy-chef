@@ -22,6 +22,13 @@ export default async function RecipesPage({
 
   const t = await getTranslations("recipes");
   const tc = await getTranslations("categories");
+
+  // Pinned grocery lists belong to a grocer; only show the active grocer's.
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { grocer: true },
+  });
+  const activeGrocer = me?.grocer === "ah" ? "ah" : "picnic";
   const { cat, origin } = await searchParams;
 
   // Multiple categories allowed (comma-separated); a recipe matching ANY of
@@ -45,7 +52,7 @@ export default async function RecipesPage({
       orderBy: { createdAt: "desc" },
     }),
     prisma.groceryList.findMany({
-      where: { userId: session.user.id },
+      where: { userId: session.user.id, grocer: activeGrocer },
       orderBy: { createdAt: "desc" },
       include: { _count: { select: { items: true } } },
     }),

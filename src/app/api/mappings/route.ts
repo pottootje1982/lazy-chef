@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { normalizeIngredient } from "@/lib/translate";
+import { asGrocer } from "@/lib/grocer";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -36,12 +37,21 @@ export async function POST(req: Request) {
   }
 
   const ingredientKey = normalizeIngredient(raw);
+  // Mappings are stored per active grocer, so switching grocers keeps both sets.
+  const dbUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { grocer: true },
+  });
+  const grocer = asGrocer(dbUser?.grocer);
 
   const mapping = await prisma.productMapping.upsert({
-    where: { userId_ingredientKey: { userId: session.user.id, ingredientKey } },
+    where: {
+      userId_ingredientKey_grocer: { userId: session.user.id, ingredientKey, grocer },
+    },
     create: {
       userId: session.user.id,
       ingredientKey,
+      grocer,
       rawIngredient: raw,
       translated: body.translated?.trim() || ingredientKey,
       picnicId: product.picnicId,

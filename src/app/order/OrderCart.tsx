@@ -27,6 +27,8 @@ export default function OrderCart({
   unmappedCount,
   picnicLinked,
   isGuest = false,
+  grocerName,
+  grocerUrl,
 }: {
   items: OrderItem[];
   initialSelectedIds: string[];
@@ -34,6 +36,8 @@ export default function OrderCart({
   unmappedCount: number;
   picnicLinked: boolean;
   isGuest?: boolean;
+  grocerName: string; // active grocer display name (e.g. "Picnic" / "Albert Heijn")
+  grocerUrl: string; // where "open the app/site" links to
 }) {
   const t = useTranslations("order");
   const tErr = useTranslations("errors");
@@ -194,12 +198,12 @@ export default function OrderCart({
             </p>
             <div className="mt-1 flex flex-wrap gap-3 text-sm">
               <a
-                href="https://picnic.app"
+                href={grocerUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-green-700 underline hover:text-green-900"
               >
-                {t("openPicnic")}
+                {t("openGrocer", { grocer: grocerName })}
               </a>
               <Link href="/settings" className="text-green-700 underline hover:text-green-900">
                 {t("viewInPrevious")}
@@ -231,11 +235,13 @@ export default function OrderCart({
                   disabled={status === "loading" || chosen.length === 0}
                   className="btn-primary"
                 >
-                  {status === "loading" ? t("adding") : t("addToCart", { count: chosen.length })}
+                  {status === "loading"
+                    ? t("adding")
+                    : t("addToCart", { count: chosen.length, grocer: grocerName })}
                 </button>
               ) : (
                 <Link href="/settings" className="btn-primary">
-                  {t("connectToOrder")}
+                  {t("connectToOrder", { grocer: grocerName })}
                 </Link>
               )}
             </div>

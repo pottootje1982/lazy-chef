@@ -7,7 +7,7 @@ import { deleteRecipe } from "@/app/actions";
 import { normalizeIngredient, defaultOrderCount } from "@/lib/translate";
 import { isLikelyEnglish } from "@/lib/nl-dict";
 import { CATEGORY_KEYS } from "@/lib/categories";
-import { productImageUrl } from "@/lib/picnic";
+import { asGrocer, imageUrl as grocerImageUrl } from "@/lib/grocer";
 import IngredientList, { type IngredientItem } from "@/components/IngredientList";
 import RecipeSelectToggle from "./RecipeSelectToggle";
 import RecipeImage from "./RecipeImage";
@@ -26,17 +26,20 @@ export default async function RecipeDetailPage({
   const recipe = await prisma.recipe.findUnique({ where: { id } });
   if (!recipe || recipe.userId !== session.user.id) notFound();
 
-  // Build the per-ingredient view: pair each line with its saved product mapping.
+  // Build the per-ingredient view: pair each line with its saved product mapping
+  // for the ACTIVE grocer (mappings are stored per grocer).
   const [user, mappings] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { picnicAuthKey: true, unavailableIngredients: true },
+      select: { picnicAuthKey: true, ahAuthKey: true, grocer: true, unavailableIngredients: true },
     }),
     prisma.productMapping.findMany({ where: { userId: session.user.id } }),
   ]);
-  const picnicLinked = Boolean(user?.picnicAuthKey);
+  const grocer = asGrocer(user?.grocer);
+  // For AH, search is anonymous (no link needed); for Picnic a link is required.
+  const picnicLinked = grocer === "ah" ? true : Boolean(user?.picnicAuthKey);
   const isGuest = Boolean(session.user.isGuest);
-  const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
+  const byKey = new Map(mappings.filter((m) => m.grocer === grocer).map((m) => [m.ingredientKey, m]));
   const unavailableSet = new Set(user?.unavailableIngredients ?? []);
   const overrides = (recipe.quantityOverrides ?? {}) as Record<string, number>;
 
@@ -56,7 +59,7 @@ export default async function RecipeDetailPage({
             picnicId: m.picnicId,
             name: m.productName,
             imageId: m.imageId,
-            imageUrl: productImageUrl(m.imageId),
+            imageUrl: grocerImageUrl(grocer, m.imageId),
             priceCents: m.priceCents,
             unitQuantity: m.unitQuantity,
           }

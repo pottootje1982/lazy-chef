@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeIngredient, defaultOrderCount } from "@/lib/translate";
-import { productImageUrl } from "@/lib/picnic";
+import { asGrocer, imageUrl as grocerImageUrl, type Grocer } from "@/lib/grocer";
 
 // A linked ingredient is a pantry staple when its normalized key contains one
 // of the user's pantry keywords. The keyword list is user-managed (Settings).
@@ -10,6 +10,7 @@ function matchesPantryKeywords(key: string, keywords: string[]): boolean {
 
 export type OrderProduct = {
   picnicId: string;
+  grocer: Grocer;
   name: string;
   imageId: string | null;
   imageUrl: string | null;
@@ -36,6 +37,7 @@ export type OrderSection = {
 // A product snapshot added to the draft cart via a "basket" button.
 export type CartItem = {
   picnicId: string;
+  grocer?: Grocer; // which grocer the product belongs to (default: picnic)
   name: string;
   imageId: string | null;
   priceCents: number | null;
@@ -80,13 +82,15 @@ export async function aggregateOrder(
     }),
     prisma.user.findUnique({
       where: { id: userId },
-      select: { pantryKeywords: true, unavailableIngredients: true },
+      select: { pantryKeywords: true, unavailableIngredients: true, grocer: true },
     }),
   ]);
   const pantryKeywords = user?.pantryKeywords ?? [];
   const unavailableSet = new Set(user?.unavailableIngredients ?? []);
+  const grocer = asGrocer(user?.grocer);
 
-  const byKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
+  // Only the active grocer's mappings apply (mappings are stored per grocer).
+  const byKey = new Map(mappings.filter((m) => m.grocer === grocer).map((m) => [m.ingredientKey, m]));
   const cart = new Map<string, CartEntry>();
   let unmappedCount = 0;
   const sections: OrderSection[] = [];
@@ -121,9 +125,10 @@ export async function aggregateOrder(
       } else {
         cart.set(m.picnicId, {
           picnicId: m.picnicId,
+          grocer,
           name: m.productName,
           imageId: m.imageId,
-          imageUrl: productImageUrl(m.imageId),
+          imageUrl: grocerImageUrl(grocer, m.imageId),
           priceCents: m.priceCents,
           unitQuantity: m.unitQuantity,
           quantity: n,
@@ -150,9 +155,10 @@ export async function aggregateOrder(
       } else {
         cart.set(it.picnicId, {
           picnicId: it.picnicId,
+          grocer: asGrocer(list.grocer),
           name: it.productName,
           imageId: it.imageId,
-          imageUrl: productImageUrl(it.imageId),
+          imageUrl: grocerImageUrl(asGrocer(list.grocer), it.imageId),
           priceCents: it.priceCents,
           unitQuantity: it.unitQuantity,
           quantity: it.quantity,
@@ -178,11 +184,13 @@ export async function aggregateOrder(
         existing.quantity += it.quantity;
         existing.fromGrocery = true;
       } else {
+        const g = asGrocer(it.grocer);
         cart.set(it.picnicId, {
           picnicId: it.picnicId,
+          grocer: g,
           name: it.name,
           imageId: it.imageId,
-          imageUrl: productImageUrl(it.imageId),
+          imageUrl: grocerImageUrl(g, it.imageId),
           priceCents: it.priceCents,
           unitQuantity: it.unitQuantity,
           quantity: it.quantity,
@@ -203,6 +211,7 @@ export async function aggregateOrder(
     const isStaple = it.stapleOverride ?? matchesPantryKeywords(it.ingredientKey, pantryKeywords);
     return {
       picnicId: it.picnicId,
+      grocer: it.grocer,
       name: it.name,
       imageId: it.imageId,
       imageUrl: it.imageUrl,

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateOrder, defaultSelectedIds, sameSelection, type CartItem } from "@/lib/orders";
+import { asGrocer, isLinked } from "@/lib/grocer";
 import OrderCart from "./OrderCart";
 import DraftCartSection from "./DraftCartSection";
 import ClearCartButton from "./ClearCartButton";
@@ -44,12 +45,21 @@ export default async function OrderPage({
   const cartItems = (draft?.cartItems as CartItem[] | null) ?? [];
 
   const [user, agg] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { picnicAuthKey: true } }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { picnicAuthKey: true, ahAuthKey: true, grocer: true },
+    }),
     aggregateOrder(userId, recipeIds, listIds, cartItems),
   ]);
   if (agg.sections.length === 0) redirect("/recipes");
 
-  const picnicLinked = Boolean(user?.picnicAuthKey);
+  const grocer = asGrocer(user?.grocer);
+  const picnicLinked =
+    !!user &&
+    isLinked(grocer, { id: userId, grocer, picnicAuthKey: user.picnicAuthKey, ahAuthKey: user.ahAuthKey });
+  const tg = await getTranslations("grocer");
+  const grocerName = tg(grocer);
+  const grocerUrl = grocer === "ah" ? "https://www.ah.nl/mijnlijst" : "https://picnic.app";
   const t = await getTranslations("order");
 
   // Persist the current order as a DRAFT (selected recipes + lists + products)
@@ -184,6 +194,8 @@ export default async function OrderPage({
         unmappedCount={agg.unmappedCount}
         picnicLinked={picnicLinked}
         isGuest={isGuest}
+        grocerName={grocerName}
+        grocerUrl={grocerUrl}
       />
     </div>
   );

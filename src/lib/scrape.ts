@@ -109,12 +109,14 @@ export function cleanTitle(title: string, siteName?: string): string {
 // Section headings that introduce the ingredient / instruction lists on recipe
 // blogs that lack Recipe JSON-LD (very common on Dutch sites).
 const INGREDIENT_MARKER =
-  /(ingredi[eë]nt|wat (heb|je) (je )?nodig|benodigdheden|boodschappen|nodig hebt|ingredients?|what you('ll| will)? need|you('ll| will)? need)/i;
+  /(ingredi[eë]nt|wat (heb|je) (je )?nodig|heb je nodig|nodig voor|benodigdheden|boodschappen|nodig hebt|ingredients?|what you('ll| will)? need|you('ll| will)? need)/i;
 const INSTRUCTION_MARKER =
-  /(bereidingswijze|bereiding|werkwijze|zo maak je|aan de slag|stappenplan|stappen|instructies?|directions?|method|preparation|how to make|steps?)/i;
+  /(bereidingswijze|bereiding|werkwijze|zo ga je te werk|zo ga je|zo maak je|aan de slag|stappenplan|stappen|instructies?|directions?|method|preparation|how to make|steps?)/i;
 
 // Fallback recipe extraction from the article body for pages without Recipe
-// JSON-LD. Looks for "ingredients"/"directions" headings followed by a list.
+// JSON-LD. Handles two common blog layouts: an "ingredients"/"directions"
+// heading followed by a <ul>/<ol>, AND a single <p> whose lines are separated
+// by <br> (the marker is the first line; the items are the following lines).
 export function extractFromHtml($: cheerio.CheerioAPI): {
   ingredients: string[];
   instructions: string[];
@@ -126,39 +128,84 @@ export function extractFromHtml($: cheerio.CheerioAPI): {
   ).first();
   const scope = root.length ? root : $("body");
 
-  // Items of the first <ul>/<ol> that follows a heading/paragraph matching the
-  // marker (searched within the content scope only).
-  const listItemsAfter = (marker: RegExp): string[] => {
+  type Sel = ReturnType<typeof $>;
+
+  // Split an element's text into lines, treating <br> as a line break.
+  const blockLines = (sel: Sel): string[] => {
+    if (sel.length === 0) return [];
+    const inner = sel.html() ?? "";
+    if (!/<br/i.test(inner)) {
+      const t = sel.text().replace(/\s+/g, " ").trim();
+      return t ? [t] : [];
+    }
+    return inner
+      .split(/<br\s*\/?>/i)
+      .map((seg) => cheerio.load(`<x>${seg}</x>`)("x").text().replace(/\s+/g, " ").trim());
+  };
+
+  // Keep lines up to the first blank one (a paragraph break / next section,
+  // e.g. ingredients followed by "En verder:" equipment).
+  const untilBlank = (lines: string[]): string[] => {
+    const out: string[] = [];
+    for (const ln of lines) {
+      if (!ln) break;
+      out.push(ln);
+    }
+    return out;
+  };
+
+  const itemsFor = (marker: RegExp): string[] => {
     let found: string[] = [];
     scope.find("p, h2, h3, h4, h5, h6, strong, b").each((_, el) => {
       if (found.length) return;
-      const text = $(el).text().replace(/\s+/g, " ").trim();
-      if (!text || text.length > 60 || !marker.test(text)) return;
-      // For an inline match (e.g. <strong> in a <p>), traverse from the
-      // block-level ancestor so the following <ul>/<ol> is a sibling.
+      // For an inline match (e.g. <strong> in a <p>), use the block-level
+      // ancestor so siblings/<br> lines resolve correctly.
       const tag = (el as { tagName?: string }).tagName?.toLowerCase() ?? "";
       const block = ["strong", "b", "span", "em"].includes(tag)
         ? ($(el).closest("p, h2, h3, h4, h5, h6, div, li").get(0) ?? el)
         : el;
-      const items = $(block)
+      const $block = $(block);
+      const lines = blockLines($block);
+      const first = lines[0] ?? "";
+      if (!first || first.length > 60 || !marker.test(first)) return;
+
+      // (a) a following <ul>/<ol> list.
+      let items = $block
         .nextAll("ul, ol")
         .first()
         .children("li")
         .map((_i, li) => $(li).text().replace(/\s+/g, " ").trim())
         .get()
         .filter(Boolean);
+
+      // (b) the remaining <br>-separated lines of this same <p>.
+      if (!items.length && lines.length > 1) items = untilBlank(lines.slice(1));
+
+      // (c) the <br>-separated lines of the following paragraph.
+      if (!items.length) {
+        const next = untilBlank(blockLines($block.nextAll("p").first()));
+        if (next.length > 1) items = next;
+      }
+
       if (items.length) found = items;
     });
     return found;
   };
 
-  const ingredients = listItemsAfter(INGREDIENT_MARKER);
-  const instructions = listItemsAfter(INSTRUCTION_MARKER);
+  const ingredients = itemsFor(INGREDIENT_MARKER);
+  const instructions = itemsFor(INSTRUCTION_MARKER);
 
   const text = scope.text().replace(/\s+/g, " ");
   const nl = text.match(/(\d+)\s*persone?n/i);
   const en = text.match(/serves?\s*(\d+)|(\d+)\s*servings?/i);
-  const servings = nl ? `${nl[1]} personen` : en ? (en[1] ?? en[2]) : undefined;
+  const stuks = text.match(/(\d+)\s*stuks?\b/i);
+  const servings = nl
+    ? `${nl[1]} personen`
+    : en
+      ? (en[1] ?? en[2])
+      : stuks
+        ? `${stuks[1]} stuks`
+        : undefined;
 
   return { ingredients, instructions, servings };
 }

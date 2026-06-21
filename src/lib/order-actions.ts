@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { aggregateOrder, type CartItem } from "@/lib/orders";
+import { asGrocer } from "@/lib/grocer";
 
 // Returns the non-guest user id, or null if not allowed to persist orders.
 async function writerId(): Promise<string | null> {
@@ -20,7 +21,11 @@ export async function addToDraftCart(items: CartItem[]): Promise<void> {
   const userId = await writerId();
   if (!userId || !Array.isArray(items) || items.length === 0) return;
 
-  const draft = await prisma.order.findFirst({ where: { userId, status: "DRAFT" } });
+  const [draft, dbUser] = await Promise.all([
+    prisma.order.findFirst({ where: { userId, status: "DRAFT" } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { grocer: true } }),
+  ]);
+  const grocer = asGrocer(dbUser?.grocer);
   const current: CartItem[] = (draft?.cartItems as CartItem[] | null) ?? [];
   const byId = new Map(current.map((c) => [c.picnicId, { ...c }]));
   for (const it of items) {
@@ -31,6 +36,7 @@ export async function addToDraftCart(items: CartItem[]): Promise<void> {
     } else {
       byId.set(it.picnicId, {
         picnicId: it.picnicId,
+        grocer: it.grocer ?? grocer,
         name: it.name,
         imageId: it.imageId ?? null,
         priceCents: it.priceCents ?? null,
@@ -146,6 +152,7 @@ export async function placeCurrentOrder(): Promise<void> {
       unavailableItems: unavailable,
       items: {
         create: chosen.map((p) => ({
+          grocer: p.grocer,
           picnicId: p.picnicId,
           productName: p.name,
           imageId: p.imageId,

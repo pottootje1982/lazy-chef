@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { productImageUrl } from "@/lib/picnic";
+import { asGrocer, imageUrl as grocerImageUrl } from "@/lib/grocer";
 import { normalizeIngredient, translateMany } from "@/lib/translate";
 import BulkLinkClient, {
   type UnlinkedItem,
@@ -76,10 +76,10 @@ export default async function IngredientsPage() {
   if (!session?.user?.id) redirect("/login");
   const isGuest = Boolean(session.user.isGuest);
 
-  const [user, recipes, mappings] = await Promise.all([
+  const [user, recipes, allMappings] = await Promise.all([
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { picnicAuthKey: true, ignoredIngredients: true, unavailableIngredients: true },
+      select: { picnicAuthKey: true, ahAuthKey: true, grocer: true, ignoredIngredients: true, unavailableIngredients: true },
     }),
     prisma.recipe.findMany({
       where: { userId: session.user.id },
@@ -89,6 +89,7 @@ export default async function IngredientsPage() {
       where: { userId: session.user.id },
       select: {
         ingredientKey: true,
+        grocer: true,
         productName: true,
         translated: true,
         imageId: true,
@@ -97,7 +98,11 @@ export default async function IngredientsPage() {
       },
     }),
   ]);
-  const picnicLinked = Boolean(user?.picnicAuthKey);
+  const grocer = asGrocer(user?.grocer);
+  // Only the active grocer's mappings (mappings are stored per grocer).
+  const mappings = allMappings.filter((m) => m.grocer === grocer);
+  // AH search is anonymous; Picnic needs a linked account.
+  const picnicLinked = grocer === "ah" ? true : Boolean(user?.picnicAuthKey);
   const mapByKey = new Map(mappings.map((m) => [m.ingredientKey, m]));
   const ignoredSet = new Set(user?.ignoredIngredients ?? []);
   const unavailableSet = new Set(user?.unavailableIngredients ?? []);
@@ -147,7 +152,7 @@ export default async function IngredientsPage() {
         prefill,
         product: {
           name: m.productName,
-          imageUrl: productImageUrl(m.imageId),
+          imageUrl: grocerImageUrl(grocer, m.imageId),
           priceCents: m.priceCents,
           unitQuantity: m.unitQuantity,
         },

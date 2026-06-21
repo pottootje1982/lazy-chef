@@ -11,17 +11,16 @@ export default async function PantryPage() {
   const isGuest = Boolean(session.user.isGuest);
   const t = await getTranslations("pantry");
 
-  const [user, mappings] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { pantryKeywords: true },
-    }),
-    prisma.productMapping.findMany({
-      where: { userId: session.user.id },
-      select: { picnicId: true, ingredientKey: true, productName: true, isStaple: true },
-      orderBy: { productName: "asc" },
-    }),
-  ]);
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { pantryKeywords: true, grocer: true },
+  });
+  const grocer = user?.grocer === "ah" ? "ah" : "picnic";
+  const mappings = await prisma.productMapping.findMany({
+    where: { userId: session.user.id, grocer },
+    select: { picnicId: true, ingredientKey: true, productName: true, isStaple: true },
+    orderBy: { productName: "asc" },
+  });
   const keywords = user?.pantryKeywords ?? [];
 
   return (

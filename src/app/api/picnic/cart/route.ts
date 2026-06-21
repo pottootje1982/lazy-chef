@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { decrypt } from "@/lib/crypto";
-import { addToCart } from "@/lib/picnic";
+import { asGrocer, addToCart, isLinked, GrocerNotLinkedError } from "@/lib/grocer";
 
 // Adding several products can take a moment; allow headroom where possible.
 export const maxDuration = 60;
@@ -17,7 +16,11 @@ export async function POST(req: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user?.picnicAuthKey) {
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const grocer = asGrocer(user.grocer);
+  if (!isLinked(grocer, user)) {
     return NextResponse.json({ error: "picnic_not_linked" }, { status: 409 });
   }
 
@@ -41,10 +44,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    await addToCart(decrypt(user.picnicAuthKey), items);
+    await addToCart(grocer, user, items);
     const total = items.reduce((sum, i) => sum + i.quantity, 0);
     return NextResponse.json({ ok: true, added: total });
   } catch (err) {
+    if (err instanceof GrocerNotLinkedError) {
+      return NextResponse.json({ error: "picnic_not_linked" }, { status: 409 });
+    }
     const message = err instanceof Error ? err.message : "Failed to add to cart.";
     return NextResponse.json({ error: message }, { status: 502 });
   }

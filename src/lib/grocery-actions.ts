@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { asGrocer } from "@/lib/grocer";
 
 // Returns the non-guest user id, or null if the caller may not write.
 async function writerId(): Promise<string | null> {
@@ -16,7 +17,11 @@ export async function createList(name: string): Promise<void> {
   if (!userId) return;
   const trimmed = name.trim().slice(0, 100);
   if (!trimmed) return;
-  await prisma.groceryList.create({ data: { userId, name: trimmed } });
+  // A list belongs to the grocer that was active when it was created.
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }, select: { grocer: true } });
+  await prisma.groceryList.create({
+    data: { userId, name: trimmed, grocer: asGrocer(dbUser?.grocer) },
+  });
   revalidatePath("/groceries");
 }
 

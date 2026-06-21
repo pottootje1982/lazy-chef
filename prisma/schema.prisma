@@ -1,11 +1,14 @@
-// Prisma schema — Postgres. Run `npm run db:push` to sync.
+// Prisma schema — Postgres. Schema changes: `npm run migrate -- --name <desc>`
+// (creates a versioned migration). `prisma migrate dev` needs a scratch shadow
+// DB — set to a separate Neon branch via SHADOW_DATABASE_URL.
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 // ---- Auth.js (NextAuth) models ----
@@ -19,6 +22,8 @@ model User {
   isGuest       Boolean  @default(false) // read-only demo account
   picnicAuthKey String? // AES-GCM encrypted Picnic auth key; null if not linked
   picnicPendingKey String? // AES-GCM encrypted interim auth key during 2FA login; null otherwise
+  grocer        String   @default("picnic") // active grocer for search/order: "picnic" | "ah"
+  ahAuthKey     String? // AES-GCM encrypted Albert Heijn refresh token; null if not linked
   paprikaEmail    String? // Paprika sync account email
   paprikaPassword String? // AES-GCM encrypted Paprika password (Basic-auth per call)
   // Pantry staple keywords: linked ingredients whose normalized key contains one
@@ -116,9 +121,10 @@ model ProductMapping {
   ingredientKey String // normalized english ingredient, e.g. "cherry tomatoes"
   rawIngredient String // original ingredient line, for reference
   translated    String // dutch search term used
-  picnicId      String // Picnic selling unit id, e.g. "s1001524"
+  grocer        String   @default("picnic") // "picnic" | "ah"
+  picnicId      String // grocer product id (Picnic selling unit id, or AH webshopId)
   productName   String
-  imageId       String?
+  imageId       String? // Picnic image id, or an AH image URL
   priceCents    Int?
   unitQuantity  String?
   isStaple      Boolean? // pantry override: null = follow keywords, true/false = force
@@ -127,7 +133,7 @@ model ProductMapping {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, ingredientKey])
+  @@unique([userId, ingredientKey, grocer])
   @@index([userId])
 }
 
@@ -188,6 +194,7 @@ model Order {
 model OrderItem {
   id           String  @id @default(cuid())
   orderId      String
+  grocer       String  @default("picnic") // "picnic" | "ah"
   picnicId     String
   productName  String
   imageId      String?
@@ -206,6 +213,7 @@ model GroceryList {
   id        String        @id @default(cuid())
   userId    String
   name      String
+  grocer    String        @default("picnic") // "picnic" | "ah"
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)

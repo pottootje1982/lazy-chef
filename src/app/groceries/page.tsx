@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { productImageUrl } from "@/lib/picnic";
+import { asGrocer, imageUrl as grocerImageUrl } from "@/lib/grocer";
 import { createList } from "@/lib/grocery-actions";
 import GroceryListEditor from "./GroceryListEditor";
 
@@ -17,15 +17,19 @@ export default async function GroceriesPage() {
   const isGuest = Boolean(session.user.isGuest);
   const t = await getTranslations("groceries");
 
-  const [user, lists] = await Promise.all([
-    prisma.user.findUnique({ where: { id: session.user.id }, select: { picnicAuthKey: true } }),
-    prisma.groceryList.findMany({
-      where: { userId: session.user.id },
-      orderBy: { createdAt: "desc" },
-      include: { items: { orderBy: { productName: "asc" } } },
-    }),
-  ]);
-  const picnicLinked = Boolean(user?.picnicAuthKey);
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { picnicAuthKey: true, ahAuthKey: true, grocer: true },
+  });
+  const grocer = asGrocer(user?.grocer);
+  // A list belongs to one grocer; only show the active grocer's lists.
+  const lists = await prisma.groceryList.findMany({
+    where: { userId: session.user.id, grocer },
+    orderBy: { createdAt: "desc" },
+    include: { items: { orderBy: { productName: "asc" } } },
+  });
+  // Can we search for products to add? AH search is anonymous; Picnic needs a link.
+  const picnicLinked = grocer === "ah" ? true : Boolean(user?.picnicAuthKey);
 
   async function addList(formData: FormData) {
     "use server";
@@ -71,7 +75,7 @@ export default async function GroceriesPage() {
               picnicId: it.picnicId,
               productName: it.productName,
               imageId: it.imageId,
-              imageUrl: productImageUrl(it.imageId),
+              imageUrl: grocerImageUrl(grocer, it.imageId),
               priceCents: it.priceCents,
               unitQuantity: it.unitQuantity,
               quantity: it.quantity,

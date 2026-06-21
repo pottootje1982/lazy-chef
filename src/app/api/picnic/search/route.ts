@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { decrypt } from "@/lib/crypto";
-import { searchProducts } from "@/lib/picnic";
+import { asGrocer, search, GrocerNotLinkedError } from "@/lib/grocer";
 import { normalizeIngredient, translateToDutch } from "@/lib/translate";
 
-// Translate + Picnic search can take a few seconds; allow headroom where possible.
+// Translate + grocer search can take a few seconds; allow headroom where possible.
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
@@ -15,9 +14,10 @@ export async function POST(req: Request) {
   }
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
-  if (!user?.picnicAuthKey) {
-    return NextResponse.json({ error: "picnic_not_linked" }, { status: 409 });
+  if (!user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const grocer = asGrocer(user.grocer);
 
   let body: { ingredient?: string; query?: string; lang?: string };
   try {
@@ -35,15 +35,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing ingredient" }, { status: 400 });
   }
 
+  const runSearch = (q: string) => search(grocer, user, q);
+
   try {
-    const authKey = decrypt(user.picnicAuthKey);
     let translated: string;
     let products;
 
     if (manualQuery) {
       // User-supplied search term: use it verbatim, skip normalize/translate.
       translated = manualQuery;
-      products = await searchProducts(authKey, manualQuery);
+      products = await runSearch(manualQuery);
     } else {
       const key = normalizeIngredient(ingredient!);
       if (isEnglish) {
@@ -51,9 +52,9 @@ export async function POST(req: Request) {
         // Dutch). Fall back to the raw key if translation finds nothing.
         const t = await translateToDutch(key);
         translated = t || key;
-        products = await searchProducts(authKey, translated);
+        products = await runSearch(translated);
         if (products.length === 0 && translated.toLowerCase() !== key.toLowerCase()) {
-          const viaKey = await searchProducts(authKey, key);
+          const viaKey = await runSearch(key);
           if (viaKey.length > 0) {
             products = viaKey;
             translated = key;
@@ -64,11 +65,11 @@ export async function POST(req: Request) {
         // directly first. Only fall back to EN→NL translation when that finds
         // nothing — avoids mangling Dutch terms ("spinazie" → "sinaasappel").
         translated = key;
-        products = await searchProducts(authKey, key);
+        products = await runSearch(key);
         if (products.length === 0) {
           const t = await translateToDutch(key);
           if (t && t.toLowerCase() !== key.toLowerCase()) {
-            const viaTranslation = await searchProducts(authKey, t);
+            const viaTranslation = await runSearch(t);
             if (viaTranslation.length > 0) {
               products = viaTranslation;
               translated = t;
@@ -81,8 +82,11 @@ export async function POST(req: Request) {
     // ingredientKey always derives from the original line so the saved mapping
     // stays consistent regardless of how the search was phrased.
     const ingredientKey = ingredient ? normalizeIngredient(ingredient) : translated;
-    return NextResponse.json({ ingredientKey, translated, products });
+    return NextResponse.json({ ingredientKey, translated, products, grocer });
   } catch (err) {
+    if (err instanceof GrocerNotLinkedError) {
+      return NextResponse.json({ error: "picnic_not_linked" }, { status: 409 });
+    }
     const message = err instanceof Error ? err.message : "Search failed.";
     return NextResponse.json({ error: message }, { status: 502 });
   }

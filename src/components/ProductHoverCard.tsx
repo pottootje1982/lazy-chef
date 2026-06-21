@@ -56,7 +56,10 @@ export default function ProductHoverCard({
     if (timer.current) clearTimeout(timer.current);
   }
 
-  const large = productImageUrl(product.imageId, "large");
+  // AH stores a full image URL in imageId; Picnic stores an id we build a URL from.
+  const large = product.imageId?.startsWith("http")
+    ? product.imageId
+    : productImageUrl(product.imageId, "large");
   const meta = [
     product.unitQuantity,
     product.priceCents == null ? null : "€" + (product.priceCents / 100).toFixed(2).replace(".", ","),

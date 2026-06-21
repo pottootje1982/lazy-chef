@@ -27,3 +27,13 @@ export async function setLanguage(locale: string): Promise<void> {
 
   revalidatePath("/", "layout");
 }
+
+// Set the active grocer (which store search/mappings/ordering use). Mappings are
+// stored per grocer, so switching doesn't lose the other grocer's links.
+export async function setActiveGrocer(grocer: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id || session.user.isGuest) return;
+  const g = grocer === "ah" ? "ah" : "picnic";
+  await prisma.user.update({ where: { id: session.user.id }, data: { grocer: g } });
+  revalidatePath("/", "layout");
+}
