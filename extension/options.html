@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AH Connect settings</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 28rem; color: #1c1917; }
+  h1 { font-size: 1.25rem; }
+  label { display: block; margin: 1rem 0 0.35rem; font-size: 0.9rem; color: #57534e; }
+  input { width: 100%; padding: 0.5rem; font-size: 1rem; box-sizing: border-box; }
+  button { margin-top: 0.75rem; padding: 0.5rem 1rem; font-size: 0.95rem; cursor: pointer; }
+  #status { margin-left: 0.75rem; font-size: 0.9rem; }
+  .ok { color: #15803d; }
+  .err { color: #b91c1c; }
+  p { color: #57534e; font-size: 0.9rem; }
+</style>
+<h1>Recipe Manager — AH Connect</h1>
+<p>Where does your Recipe Manager run? After AH login, the captured code is sent here.</p>
+<label for="base">Recipe Manager URL</label>
+<input id="base" type="url" placeholder="http://localhost:3000" />
+<div><button id="save">Save</button><span id="status"></span></div>
+<script src="options.js"></script>

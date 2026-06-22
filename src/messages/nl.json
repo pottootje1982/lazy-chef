@@ -56,7 +56,7 @@
     "ahDesc": "Zoeken bij AH werkt zonder in te loggen. Om te bestellen koppel je je account: log in bij AH en plak de code terug.",
     "ahConnected": "Gekoppeld met Albert Heijn",
     "ahAutoNote": "Klik hieronder, log in bij Albert Heijn en je account wordt automatisch gekoppeld.",
-    "ahSetupHint": "Eenmalig: voer scripts/setup-ah-handler.sh uit zodat de login-code automatisch verwerkt wordt.",
+    "ahSetupHint": "Eenmalig: installeer de Chrome-extensie (extension/) of voer scripts/setup-ah-handler.sh uit, zodat de login-code automatisch verwerkt wordt.",
     "ahManualToggle": "Werkt automatisch koppelen niet? Plak de code handmatig",
     "ahLoginInstructions": "1. Open de AH-login en log in. 2. Je wordt doorgestuurd naar een pagina die niet opent (appie://login-exit?code=…). 3. Kopieer die URL (of alleen de code) en plak hieronder.",
     "openAhLogin": "Albert Heijn-login openen →",

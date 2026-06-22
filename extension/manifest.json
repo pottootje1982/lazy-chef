@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Recipe Manager — AH Connect",
+  "version": "1.3.0",
+  "description": "Captures the Albert Heijn login code and links it to your Recipe Manager account automatically.",
+  "background": { "service_worker": "background.js" },
+  "permissions": ["webRequest", "storage", "webNavigation"],
+  "host_permissions": ["*://*.ah.nl/*", "http://localhost:3000/*"],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
+  "content_scripts": [
+    {
+      "matches": ["*://*.ah.nl/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["*://*.ah.nl/*"],
+      "js": ["relay.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "options_page": "options.html",
+  "action": { "default_title": "Recipe Manager — AH Connect" }
+}

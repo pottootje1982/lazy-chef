@@ -56,7 +56,7 @@
     "ahDesc": "Searching AH works without logging in. To order, connect your account: log in at AH and paste back the code.",
     "ahConnected": "Connected to Albert Heijn",
     "ahAutoNote": "Click below, sign in at Albert Heijn, and your account is linked automatically.",
-    "ahSetupHint": "One-time: run scripts/setup-ah-handler.sh so the login code is captured automatically.",
+    "ahSetupHint": "One-time: install the Chrome extension (extension/) or run scripts/setup-ah-handler.sh so the login code is captured automatically.",
     "ahManualToggle": "Automatic linking not working? Paste the code manually",
     "ahLoginInstructions": "1. Open the AH login, sign in. 2. You'll be redirected to a page that won't open (appie://login-exit?code=…). 3. Copy that URL (or just the code) and paste it below.",
     "openAhLogin": "Open Albert Heijn login →",
