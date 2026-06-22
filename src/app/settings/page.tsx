@@ -92,6 +92,14 @@ export default async function SettingsPage() {
       </div>
 
       <div className="card mt-6 p-6">
+        <h2 className="text-lg font-semibold">{t("jumboTitle")}</h2>
+        <p className="mt-1 text-sm text-stone-500">{t("jumboDesc")}</p>
+        <p className="mt-3 rounded-lg border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+          {t("jumboOrderingNote")}
+        </p>
+      </div>
+
+      <div className="card mt-6 p-6">
         <h2 className="text-lg font-semibold">{t("paprikaTitle")}</h2>
         <p className="mt-1 text-sm text-stone-500">{t("paprikaDesc")}</p>
         <div className="mt-5">

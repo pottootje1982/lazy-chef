@@ -33,7 +33,7 @@ export async function setLanguage(locale: string): Promise<void> {
 export async function setActiveGrocer(grocer: string): Promise<void> {
   const session = await auth();
   if (!session?.user?.id || session.user.isGuest) return;
-  const g = grocer === "ah" ? "ah" : "picnic";
+  const g = grocer === "ah" ? "ah" : grocer === "jumbo" ? "jumbo" : "picnic";
   await prisma.user.update({ where: { id: session.user.id }, data: { grocer: g } });
   revalidatePath("/", "layout");
 }

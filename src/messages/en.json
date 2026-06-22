@@ -1,7 +1,8 @@
 {
   "grocer": {
     "picnic": "Picnic",
-    "ah": "Albert Heijn"
+    "ah": "Albert Heijn",
+    "jumbo": "Jumbo"
   },
   "common": {
     "guest": "Guest",
@@ -54,6 +55,9 @@
     "activeGrocerDesc": "Choose which store search, ingredient links and ordering use. Links are kept per store.",
     "ahTitle": "Albert Heijn account",
     "ahDesc": "Searching AH works without logging in. To order, connect your account: log in at AH and paste back the code.",
+    "jumboTitle": "Jumbo account",
+    "jumboDesc": "Searching Jumbo works right away, no login needed. Link Jumbo products to your ingredients and grocery lists.",
+    "jumboOrderingNote": "Ordering to Jumbo happens via the browser extension while you're logged in at jumbo.com — items are then placed in your real Jumbo basket.",
     "ahConnected": "Connected to Albert Heijn",
     "ahAutoNote": "Click below, sign in at Albert Heijn, and your account is linked automatically.",
     "ahSetupHint": "One-time: install the Chrome extension (extension/) or run scripts/setup-ah-handler.sh so the login code is captured automatically.",
@@ -279,6 +283,7 @@
     "addToCart": "Add {count} to {grocer} cart",
     "connectToOrder": "Connect {grocer} to order",
     "addToCartError": "Something went wrong adding to your Picnic cart.",
+    "jumboNoExtension": "Couldn't reach the browser extension. Install it and log in at jumbo.com, then try again.",
     "addedItems": "Added items",
     "removeFromCart": "Remove from cart",
     "clearCart": "Clear cart",
@@ -416,6 +421,7 @@
     "importFailed": "Failed to import recipe.",
     "fetchPageFailed": "Something went wrong fetching that page.",
     "addToCartFailed": "Could not add to cart.",
+    "jumboAddFailed": "Couldn't add to your Jumbo basket. Are you logged in at jumbo.com?",
     "readPdfFailed": "Couldn't read that PDF. Try a photo instead.",
     "readImageFailed": "Could not read text from that image.",
     "imageError": "Something went wrong reading that image.",

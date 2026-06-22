@@ -68,3 +68,94 @@ if (chrome.webNavigation && chrome.webNavigation.onBeforeNavigate) {
     if (d.url && d.url.startsWith("appie://login-exit")) handleAppieUrl(d.url, "navigation");
   });
 }
+
+// ---- Jumbo ordering (browser-side) ----
+// Jumbo authenticates ordering with an httpOnly session cookie, so the basket
+// call must run inside a jumbo.com tab (same-origin → the cookie attaches). The
+// web app posts the draft items; app-relay.js forwards them here; we run the
+// AddBasketLines mutation in a jumbo.com tab via scripting and report back.
+
+function waitForTabComplete(tabId, timeoutMs = 20000) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      chrome.tabs.onUpdated.removeListener(onUpd);
+      resolve();
+    };
+    const onUpd = (id, info) => {
+      if (id === tabId && info.status === "complete") finish();
+    };
+    chrome.tabs.onUpdated.addListener(onUpd);
+    chrome.tabs.get(tabId, (t) => {
+      if (chrome.runtime.lastError) return;
+      if (t && t.status === "complete") finish();
+    });
+    setTimeout(finish, timeoutMs);
+  });
+}
+
+// Runs IN the jumbo.com tab: a same-origin fetch, so the session cookie attaches.
+function addBasketInPage(items) {
+  const query =
+    "mutation AddBasketLines($input: AddBasketLinesInput!) {" +
+    " addBasketLines(input: $input) { __typename ... on Basket { id totalProductCount } } }";
+  return fetch("/api/graphql", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "apollographql-client-name": "JUMBO_WEB-search",
+      "apollographql-client-version": "master-v33.9.0-web",
+      "x-source": "JUMBO_WEB-search",
+    },
+    body: JSON.stringify({
+      operationName: "AddBasketLines",
+      query,
+      variables: {
+        input: {
+          lines: items.map((i) => ({ sku: String(i.sku), quantity: Number(i.quantity) || 1 })),
+          type: "ECOMMERCE",
+        },
+      },
+    }),
+  })
+    .then((r) => r.json().then((d) => ({ status: r.status, d })))
+    .then(({ status, d }) => {
+      const node = d && d.data && d.data.addBasketLines;
+      if (status >= 400 || (d && d.errors) || (node && node.__typename === "Error")) {
+        const msg = (d && d.errors && d.errors[0] && d.errors[0].message) || (node && node.__typename) || "HTTP " + status;
+        return { ok: false, error: msg };
+      }
+      return { ok: true, total: node && node.totalProductCount };
+    })
+    .catch((e) => ({ ok: false, error: String(e) }));
+}
+
+async function jumboAddToBasket(items) {
+  let tab = (await chrome.tabs.query({ url: "*://*.jumbo.com/*" }))[0];
+  if (!tab) {
+    tab = await chrome.tabs.create({ url: "https://www.jumbo.com/", active: true });
+    await waitForTabComplete(tab.id);
+  } else {
+    chrome.tabs.update(tab.id, { active: true });
+  }
+  try {
+    const [res] = await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: addBasketInPage,
+      args: [items],
+    });
+    return res?.result ?? { ok: false, error: "no result from page" };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg && msg.type === "JUMBO_ADD_TO_BASKET" && Array.isArray(msg.items)) {
+    jumboAddToBasket(msg.items).then(sendResponse);
+    return true; // keep the message channel open for the async response
+  }
+});

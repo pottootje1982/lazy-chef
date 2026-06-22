@@ -30,7 +30,7 @@ if [ -n "$PROD_URL" ]; then
   BUILD="$(mktemp -d)/extension"
   mkdir -p "$BUILD"
   # Files without a base-URL reference: copy as-is.
-  cp "$SRC/inject.js" "$SRC/relay.js" "$BUILD/"
+  cp "$SRC/inject.js" "$SRC/relay.js" "$SRC/app-relay.js" "$BUILD/"
   # Files that reference the base URL: point them at the production origin.
   for f in background.js options.js options.html README.md; do
     sed "s#http://localhost:3000#$PROD_URL#g" "$SRC/$f" > "$BUILD/$f"
@@ -40,8 +40,13 @@ if [ -n "$PROD_URL" ]; then
     const fs = require("fs");
     const m = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
     const origin = new URL(process.argv[2]).origin + "/*";
-    m.host_permissions = ["*://*.ah.nl/*", origin];
+    m.host_permissions = ["*://*.ah.nl/*", "*://*.jumbo.com/*", origin];
     delete m.optional_host_permissions;
+    if (Array.isArray(m.content_scripts)) {
+      for (const cs of m.content_scripts) {
+        if (Array.isArray(cs.matches)) cs.matches = cs.matches.map((x) => (x === "http://localhost:3000/*" ? origin : x));
+      }
+    }
     fs.writeFileSync(process.argv[3], JSON.stringify(m, null, 2) + "\n");
   ' "$SRC/manifest.json" "$PROD_URL" "$BUILD/manifest.json"
 

@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Recipe Manager — AH Connect",
-  "version": "1.3.0",
-  "description": "Captures the Albert Heijn login code and links it to your Recipe Manager account automatically.",
+  "name": "Recipe Manager Connect",
+  "version": "2.0.0",
+  "description": "Links Albert Heijn and places orders to Jumbo for Recipe Manager.",
   "background": { "service_worker": "background.js" },
-  "permissions": ["webRequest", "storage", "webNavigation"],
-  "host_permissions": ["*://*.ah.nl/*", "http://localhost:3000/*"],
+  "permissions": ["webRequest", "storage", "webNavigation", "scripting"],
+  "host_permissions": ["*://*.ah.nl/*", "*://*.jumbo.com/*", "http://localhost:3000/*"],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "content_scripts": [
     {
@@ -20,8 +20,13 @@
       "js": ["relay.js"],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": ["http://localhost:3000/*"],
+      "js": ["app-relay.js"],
+      "run_at": "document_idle"
     }
   ],
   "options_page": "options.html",
-  "action": { "default_title": "Recipe Manager — AH Connect" }
+  "action": { "default_title": "Recipe Manager Connect" }
 }

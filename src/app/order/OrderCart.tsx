@@ -29,6 +29,7 @@ export default function OrderCart({
   isGuest = false,
   grocerName,
   grocerUrl,
+  grocer,
 }: {
   items: OrderItem[];
   initialSelectedIds: string[];
@@ -38,6 +39,7 @@ export default function OrderCart({
   isGuest?: boolean;
   grocerName: string; // active grocer display name (e.g. "Picnic" / "Albert Heijn")
   grocerUrl: string; // where "open the app/site" links to
+  grocer: string; // active grocer key ("picnic" | "ah" | "jumbo")
 }) {
   const t = useTranslations("order");
   const tErr = useTranslations("errors");
@@ -78,9 +80,43 @@ export default function OrderCart({
   const totalProducts = chosen.reduce((s, i) => s + qtyOf(i.picnicId), 0);
   const totalCents = chosen.reduce((s, i) => s + (i.priceCents ?? 0) * qtyOf(i.picnicId), 0);
 
+  // Jumbo ordering can't run server-side (httpOnly session cookie), so hand the
+  // items to the browser extension, which adds them inside a jumbo.com tab.
+  function orderToJumbo() {
+    const items = chosen.map((i) => ({ sku: i.picnicId, quantity: qtyOf(i.picnicId) }));
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const onMsg = (e: MessageEvent) => {
+      const d = e.data;
+      if (e.source !== window || !d || d.source !== "recipe-manager-ext" || d.type !== "JUMBO_ADD_RESULT") return;
+      settled = true;
+      window.removeEventListener("message", onMsg);
+      clearTimeout(timer);
+      if (d.result?.ok) {
+        if (!isGuest) void placeCurrentOrder().catch(() => {});
+        setStatus("done");
+      } else {
+        setError(tErr("jumboAddFailed"));
+        setStatus("idle");
+      }
+    };
+    window.addEventListener("message", onMsg);
+    timer = setTimeout(() => {
+      if (settled) return;
+      window.removeEventListener("message", onMsg);
+      setError(t("jumboNoExtension"));
+      setStatus("idle");
+    }, 25000);
+    window.postMessage({ source: "recipe-manager", type: "JUMBO_ADD_TO_BASKET", items }, window.location.origin);
+  }
+
   async function addToCart() {
     setStatus("loading");
     setError(null);
+    if (grocer === "jumbo") {
+      orderToJumbo();
+      return;
+    }
     try {
       const res = await fetch("/api/picnic/cart", {
         method: "POST",

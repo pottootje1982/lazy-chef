@@ -59,7 +59,12 @@ export default async function OrderPage({
     isLinked(grocer, { id: userId, grocer, picnicAuthKey: user.picnicAuthKey, ahAuthKey: user.ahAuthKey });
   const tg = await getTranslations("grocer");
   const grocerName = tg(grocer);
-  const grocerUrl = grocer === "ah" ? "https://www.ah.nl/mijnlijst" : "https://picnic.app";
+  const grocerUrl =
+    grocer === "ah"
+      ? "https://www.ah.nl/mijnlijst"
+      : grocer === "jumbo"
+        ? "https://www.jumbo.com/mijn-mandje"
+        : "https://picnic.app";
   const t = await getTranslations("order");
 
   // Persist the current order as a DRAFT (selected recipes + lists + products)
@@ -196,6 +201,7 @@ export default async function OrderPage({
         isGuest={isGuest}
         grocerName={grocerName}
         grocerUrl={grocerUrl}
+        grocer={grocer}
       />
     </div>
   );

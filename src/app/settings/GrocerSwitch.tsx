@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { setActiveGrocer } from "@/lib/user-actions";
 
-const OPTIONS = ["picnic", "ah"] as const;
+const OPTIONS = ["picnic", "ah", "jumbo"] as const;
 
 export default function GrocerSwitch({ active }: { active: string }) {
   const t = useTranslations("grocer");

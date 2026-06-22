@@ -11,13 +11,14 @@ import {
   type ProductDetail,
 } from "@/lib/picnic";
 import { ahSearch, ahAddToCart } from "@/lib/ah";
+import { jumboSearch } from "@/lib/jumbo";
 
-export type Grocer = "picnic" | "ah";
-export const GROCERS: Grocer[] = ["picnic", "ah"];
+export type Grocer = "picnic" | "ah" | "jumbo";
+export const GROCERS: Grocer[] = ["picnic", "ah", "jumbo"];
 export type GrocerProduct = PicnicProduct;
 
 export function asGrocer(value: string | null | undefined): Grocer {
-  return value === "ah" ? "ah" : "picnic";
+  return value === "ah" ? "ah" : value === "jumbo" ? "jumbo" : "picnic";
 }
 
 // Minimal slice of the User row the dispatcher needs.
@@ -36,6 +37,9 @@ export class GrocerNotLinkedError extends Error {
 }
 
 export function isLinked(grocer: Grocer, user: GrocerUser): boolean {
+  // Jumbo search needs no server credential, and ordering happens browser-side
+  // (the extension uses the user's jumbo.com session), so it's always "linked".
+  if (grocer === "jumbo") return true;
   return grocer === "ah" ? Boolean(user.ahAuthKey) : Boolean(user.picnicAuthKey);
 }
 
@@ -46,6 +50,7 @@ export async function search(
   query: string,
 ): Promise<GrocerProduct[]> {
   if (grocer === "ah") return ahSearch(query);
+  if (grocer === "jumbo") return jumboSearch(query);
   if (!user.picnicAuthKey) throw new GrocerNotLinkedError("picnic");
   return picnicSearch(decrypt(user.picnicAuthKey), query);
 }
@@ -55,7 +60,7 @@ export async function productDetail(
   user: GrocerUser,
   productId: string,
 ): Promise<ProductDetail | null> {
-  if (grocer === "ah") return null; // AH has no product-detail endpoint wired
+  if (grocer === "ah" || grocer === "jumbo") return null; // no product-detail endpoint wired
   if (!user.picnicAuthKey) return null;
   return picnicDetail(decrypt(user.picnicAuthKey), productId);
 }
@@ -64,7 +69,7 @@ export async function productDetail(
 // an image id (CDN url built on the fly).
 export function imageUrl(grocer: Grocer, imageRef: string | null | undefined): string | null {
   if (!imageRef) return null;
-  if (grocer === "ah" || imageRef.startsWith("http")) return imageRef;
+  if (grocer === "ah" || grocer === "jumbo" || imageRef.startsWith("http")) return imageRef;
   return picnicImageUrl(imageRef);
 }
 
@@ -76,6 +81,11 @@ export async function addToCart(
   items: { picnicId: string; quantity: number }[],
 ): Promise<void> {
   if (items.length === 0) return;
+  if (grocer === "jumbo") {
+    // Jumbo ordering is browser-side (extension fires AddBasketItems in the
+    // user's logged-in jumbo.com session); there is no server-side basket call.
+    throw new Error("Jumbo ordering happens in the browser, not server-side.");
+  }
   if (grocer === "ah") {
     if (!user.ahAuthKey) throw new GrocerNotLinkedError("ah");
     const { refreshToken } = await ahAddToCart(decrypt(user.ahAuthKey), items);

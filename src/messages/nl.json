@@ -1,7 +1,8 @@
 {
   "grocer": {
     "picnic": "Picnic",
-    "ah": "Albert Heijn"
+    "ah": "Albert Heijn",
+    "jumbo": "Jumbo"
   },
   "common": {
     "guest": "Gast",
@@ -54,6 +55,9 @@
     "activeGrocerDesc": "Kies welke winkel zoeken, koppelingen en bestellen gebruiken. Koppelingen worden per winkel bewaard.",
     "ahTitle": "Albert Heijn-account",
     "ahDesc": "Zoeken bij AH werkt zonder in te loggen. Om te bestellen koppel je je account: log in bij AH en plak de code terug.",
+    "jumboTitle": "Jumbo-account",
+    "jumboDesc": "Zoeken bij Jumbo werkt direct, zonder in te loggen. Koppel Jumbo-producten aan je ingrediënten en boodschappenlijsten.",
+    "jumboOrderingNote": "Bestellen naar Jumbo gebeurt via de browserextensie terwijl je bent ingelogd op jumbo.com — items worden dan in je echte Jumbo-mandje gezet.",
     "ahConnected": "Gekoppeld met Albert Heijn",
     "ahAutoNote": "Klik hieronder, log in bij Albert Heijn en je account wordt automatisch gekoppeld.",
     "ahSetupHint": "Eenmalig: installeer de Chrome-extensie (extension/) of voer scripts/setup-ah-handler.sh uit, zodat de login-code automatisch verwerkt wordt.",
@@ -279,6 +283,7 @@
     "addToCart": "{count} aan {grocer}-mandje toevoegen",
     "connectToOrder": "{grocer} koppelen om te bestellen",
     "addToCartError": "Er ging iets mis bij het toevoegen aan je Picnic-mand.",
+    "jumboNoExtension": "Geen verbinding met de browserextensie. Installeer de extensie en log in op jumbo.com, en probeer opnieuw.",
     "addedItems": "Toegevoegde producten",
     "removeFromCart": "Uit mandje verwijderen",
     "clearCart": "Mandje legen",
@@ -416,6 +421,7 @@
     "importFailed": "Recept importeren is mislukt.",
     "fetchPageFailed": "Er ging iets mis bij het ophalen van die pagina.",
     "addToCartFailed": "Kon niet aan de mand toevoegen.",
+    "jumboAddFailed": "Toevoegen aan je Jumbo-mandje is mislukt. Ben je ingelogd op jumbo.com?",
     "readPdfFailed": "Kon die pdf niet lezen. Probeer een foto.",
     "readImageFailed": "Kon geen tekst uit die afbeelding lezen.",
     "imageError": "Er ging iets mis bij het lezen van die afbeelding.",
