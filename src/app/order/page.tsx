@@ -73,8 +73,16 @@ export default async function OrderPage({
   let initialQuantities: Record<string, number> = {};
   if (!isGuest) {
     if (draft && sameSelection(draft.recipeIds, draft.listIds, recipeIds, listIds)) {
-      initialSelectedIds = draft.selectedProductIds;
-      initialQuantities = (draft.selectedQuantities ?? {}) as Record<string, number>;
+      // The draft's saved selection is grocer-specific (product ids differ per
+      // grocer). Keep only ids that exist for the active grocer; if none do
+      // (e.g. after switching grocer), fall back to sensible defaults instead of
+      // an empty, all-deselected list.
+      const productIds = new Set(agg.products.map((p) => p.picnicId));
+      const validSel = draft.selectedProductIds.filter((id) => productIds.has(id));
+      if (validSel.length > 0) {
+        initialSelectedIds = validSel;
+        initialQuantities = (draft.selectedQuantities ?? {}) as Record<string, number>;
+      }
       // Refresh the plan link (set when ordering a plan, cleared for a normal order).
       if (draft.weekPlanId !== weekPlanId) {
         await prisma.order.update({ where: { id: draft.id }, data: { weekPlanId } });

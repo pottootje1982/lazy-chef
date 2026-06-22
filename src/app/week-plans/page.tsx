@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { asGrocer } from "@/lib/grocer";
 import WeekPlanList, { type WeekPlanCard } from "./WeekPlanList";
 
 type Translator = (key: string, values?: Record<string, number>) => string;
@@ -27,13 +28,15 @@ export default async function WeekPlansPage() {
   const isGuest = Boolean(session.user.isGuest);
   const t = await getTranslations("weekPlans");
 
-  const [plans, recipes] = await Promise.all([
+  const [plans, recipes, me] = await Promise.all([
     prisma.weekPlan.findMany({
       where: { userId: session.user.id },
       orderBy: { lastOrderedAt: { sort: "asc", nulls: "first" } },
     }),
     prisma.recipe.findMany({ where: { userId: session.user.id }, select: { id: true, title: true } }),
+    prisma.user.findUnique({ where: { id: session.user.id }, select: { grocer: true } }),
   ]);
+  const grocerName = (await getTranslations("grocer"))(asGrocer(me?.grocer));
   const titleById = new Map(recipes.map((r) => [r.id, r.title]));
 
   const items: WeekPlanCard[] = plans.map((p) => {
@@ -68,7 +71,7 @@ export default async function WeekPlansPage() {
             )}
           </div>
         ) : (
-          <WeekPlanList plans={items} readOnly={isGuest} />
+          <WeekPlanList plans={items} readOnly={isGuest} grocerName={grocerName} />
         )}
       </div>
     </div>

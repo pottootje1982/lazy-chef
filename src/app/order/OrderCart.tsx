@@ -263,7 +263,7 @@ export default function OrderCart({
 
               {isGuest ? (
                 <span className="rounded-lg bg-stone-100 px-3 py-2 text-sm text-stone-500">
-                  {t("signInToOrder")}
+                  {t("signInToOrder", { grocer: grocerName })}
                 </span>
               ) : picnicLinked ? (
                 <button

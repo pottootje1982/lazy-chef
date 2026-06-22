@@ -58,12 +58,14 @@ export default function RecipeGrid({
   catLabel,
   categoryChips,
   originChips,
+  grocerName,
 }: {
   recipes: RecipeCard[];
   lists: GroceryListCard[];
   catLabel: string;
   categoryChips: FilterChip[];
   originChips: FilterChip[];
+  grocerName: string; // active grocer display name (e.g. "Picnic" / "Jumbo")
 }) {
   const router = useRouter();
   const t = useTranslations("recipes");
@@ -260,7 +262,7 @@ export default function RecipeGrid({
               : t("noMatchPlain", { label: catLabel })
             : query || catLabel
               ? t("countLabeled", { count: filtered.length, label: catLabel })
-              : t("orderTip")}
+              : t("orderTip", { grocer: grocerName })}
         </p>
       ) : null}
 
@@ -443,7 +445,7 @@ export default function RecipeGrid({
                   </button>
                 ) : null}
                 <button onClick={order} className="btn-primary">
-                  {t("orderWithPicnic")}
+                  {t("orderWithGrocer", { grocer: grocerName })}
                 </button>
               </div>
             </div>

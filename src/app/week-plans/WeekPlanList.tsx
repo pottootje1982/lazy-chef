@@ -14,7 +14,7 @@ export type WeekPlanCard = {
   everOrdered: boolean;
 };
 
-function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean }) {
+function PlanCard({ plan, readOnly, grocerName }: { plan: WeekPlanCard; readOnly: boolean; grocerName: string }) {
   const t = useTranslations("weekPlans");
   const [name, setName] = useState(plan.name);
   const orderHref = `/order?ids=${encodeURIComponent(plan.recipeIds.join(","))}&weekPlanId=${plan.id}`;
@@ -57,7 +57,7 @@ function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean })
       <div className="mt-4">
         {plan.recipeIds.length ? (
           <Link href={orderHref} className="btn-primary">
-            {t("orderWithPicnic")}
+            {t("orderWithGrocer", { grocer: grocerName })}
           </Link>
         ) : (
           <span className="text-xs text-stone-400">{t("nothingToOrder")}</span>
@@ -70,14 +70,16 @@ function PlanCard({ plan, readOnly }: { plan: WeekPlanCard; readOnly: boolean })
 export default function WeekPlanList({
   plans,
   readOnly,
+  grocerName,
 }: {
   plans: WeekPlanCard[];
   readOnly: boolean;
+  grocerName: string;
 }) {
   return (
     <div className="space-y-5">
       {plans.map((plan) => (
-        <PlanCard key={plan.id} plan={plan} readOnly={readOnly} />
+        <PlanCard key={plan.id} plan={plan} readOnly={readOnly} grocerName={grocerName} />
       ))}
     </div>
   );

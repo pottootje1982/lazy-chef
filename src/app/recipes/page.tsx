@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { RECIPE_CATEGORIES as CATEGORIES } from "@/lib/categories";
+import { asGrocer } from "@/lib/grocer";
 import RecipeGrid from "./RecipeGrid";
 
 // Origin-based filter chips (shown only when the user has such recipes).
@@ -28,7 +29,8 @@ export default async function RecipesPage({
     where: { id: session.user.id },
     select: { grocer: true },
   });
-  const activeGrocer = me?.grocer === "ah" ? "ah" : "picnic";
+  const activeGrocer = asGrocer(me?.grocer);
+  const grocerName = (await getTranslations("grocer"))(activeGrocer);
   const { cat, origin } = await searchParams;
 
   // Multiple categories allowed (comma-separated); a recipe matching ANY of
@@ -152,6 +154,7 @@ export default async function RecipesPage({
           catLabel={catLabel}
           categoryChips={categoryChips}
           originChips={originChipData}
+          grocerName={grocerName}
         />
       )}
     </div>
