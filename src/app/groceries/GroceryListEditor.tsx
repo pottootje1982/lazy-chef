@@ -36,41 +36,54 @@ function toCartItem(it: Item): CartItem {
   };
 }
 
-// Compact quantity spinner: number + tiny up/down arrows, also responds to the
-// mouse wheel. Grocery quantities may go down to 0. Persists on change.
+// Compact quantity spinner: number + tiny up/down arrows, also editable by
+// typing. Grocery quantities may go down to 0. Persists on change.
 function QtyStepper({ id, initial }: { id: string; initial: number }) {
   const t = useTranslations("groceries");
   const [qty, setQty] = useState(initial);
+  const [draft, setDraft] = useState(String(initial));
   const qtyRef = useRef(initial);
-  const ref = useRef<HTMLDivElement>(null);
 
-  function bump(delta: number) {
-    const next = Math.max(0, Math.min(99, qtyRef.current + delta));
+  function commit(value: number) {
+    const next = Math.max(0, Math.min(99, value));
+    setDraft(String(next));
     if (next === qtyRef.current) return;
     qtyRef.current = next;
     setQty(next);
     void setGroceryItemQuantity(id, next).catch(() => {});
   }
 
-  // Scroll-to-change (non-passive so we can stop the page from scrolling).
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      bump(e.deltaY < 0 ? 1 : -1);
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  function bump(delta: number) {
+    commit(qtyRef.current + delta);
+  }
 
   return (
-    <div
-      ref={ref}
-      className="flex h-8 flex-none items-center gap-1 rounded border border-stone-200 px-2"
-    >
-      <span className="text-sm tabular-nums text-stone-700">{qty}</span>
+    <div className="flex h-8 flex-none items-center gap-1 rounded border border-stone-200 px-2">
+      <input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.replace(/[^0-9]/g, ""))}
+        onFocus={(e) => e.target.select()}
+        onBlur={() => {
+          const parsed = parseInt(draft, 10);
+          commit(Number.isNaN(parsed) ? qtyRef.current : parsed);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.currentTarget.blur();
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            bump(1);
+          } else if (e.key === "ArrowDown") {
+            e.preventDefault();
+            bump(-1);
+          }
+        }}
+        aria-label={t("increaseQuantity")}
+        className="w-6 bg-transparent text-center text-sm tabular-nums text-stone-700 outline-none"
+      />
       <span className="flex flex-col leading-none">
         <button
           onClick={() => bump(1)}
